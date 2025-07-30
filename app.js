@@ -60,61 +60,71 @@ import path from "path";
 import { customersRoute } from "./Routes/customersRoute.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import cloudinary from 'cloudinary';
+import cloudinary from "cloudinary";
 import { errorHandlerMiddleware } from "./Middleware/errorMiddleWare.js";
 import { adminRoute } from "./Routes/adminRoute.js";
-import stripeRoutes from "./Routes/stripeRoutes.js"; // Changed to ES module import
+import stripeRoutes from "./Routes/stripeRoutes.js";
 
-//setting path of env environment
-dotenv.config({path:path.join(path.resolve(),"/Config/config.env")});
+// Load environment variables
+dotenv.config({ path: path.join(path.resolve(), "/Config/config.env") });
 
-// creating app instance
+// Create app
 export const app = express();
 
-//middleware
-app.use(express.json());
-app.use(cookieParser());
+// ✅ CORS middleware FIRST
+const allowedOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim());
 
-// Configure Cloudinary
-cloudinary.v2.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+const corsOptions = {
+  origin: function (origin, callback) {
+    console.log("CORS Origin:", origin);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn("Blocked by CORS:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
+};
+app.use(cors(corsOptions));
 
-// Raw body parser middleware for Stripe webhooks
+// ⚠️ Stripe webhook needs raw body
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/v1/stripe/webhook') {
-    let rawBody = '';
-    req.on('data', (chunk) => {
+  if (req.originalUrl === "/api/v1/stripe/webhook") {
+    let rawBody = "";
+    req.on("data", (chunk) => {
       rawBody += chunk.toString();
     });
-    req.on('end', () => {
+    req.on("end", () => {
       req.rawBody = rawBody;
       next();
     });
   } else {
-    next();
+    express.json()(req, res, next); // normal parser
   }
 });
 
-//cors 
-const allowedOrigins = [process.env.FORNTEND_URL, 'http://localhost:3000']; // Added localhost:3000 for development
-const corsOptions = {
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
-};
-app.use(cors(corsOptions));
+// Parse cookies
+app.use(cookieParser());
 
-//routers
-app.get("/api/v1/user/login",(_,res)=>{
-    res.end("welcome to my server!")
-})
-app.use("/api/v1",customersRoute);
-app.use("/api/v1",adminRoute);
+// Cloudinary configuration
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Routes
+app.get("/api/v1/user/login", (_, res) => {
+  res.end("Welcome to my server!");
+});
+app.use("/api/v1", customersRoute);
+app.use("/api/v1", adminRoute);
 app.use("/api/v1/stripe", stripeRoutes);
 
-//errorHandlerMiddleware
+// Error handling middleware
 app.use(errorHandlerMiddleware);
