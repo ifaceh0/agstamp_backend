@@ -72,10 +72,10 @@ dotenv.config({ path: path.join(path.resolve(), "Config", "config.env") });
 export const app = express();
 
 // ✅ Setup CORS middleware FIRST
-const allowedOrigins = [
-  "https://agstamp-frontend.vercel.app",
-  "http://localhost:5173"
-];
+const allowedOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin); // Remove empty strings
 
 console.log("✅ Allowed Origins:", allowedOrigins);
 
