@@ -65,24 +65,28 @@ import { errorHandlerMiddleware } from "./Middleware/errorMiddleWare.js";
 import { adminRoute } from "./Routes/adminRoute.js";
 import stripeRoutes from "./Routes/stripeRoutes.js";
 
-// Load environment variables
-dotenv.config({ path: path.join(path.resolve(), "/Config/config.env") });
+// ✅ Load environment variables
+dotenv.config({ path: path.join(path.resolve(), "Config", "config.env") });
 
-// Create app
+// ✅ Create Express app
 export const app = express();
 
-// ✅ CORS middleware FIRST
+// ✅ Setup CORS middleware FIRST
 const allowedOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
-  .map((origin) => origin.trim());
+  .map((origin) => origin.trim())
+  .filter((origin) => origin); // Remove empty strings
+
+console.log("✅ Allowed Origins:", allowedOrigins);
 
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log("CORS Origin:", origin);
+    console.log("🌐 CORS Origin Attempt:", origin);
     if (!origin || allowedOrigins.includes(origin)) {
+      console.log("✅ CORS Allowed:", origin);
       callback(null, true);
     } else {
-      console.warn("Blocked by CORS:", origin);
+      console.warn("❌ CORS Blocked:", origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -90,9 +94,10 @@ const corsOptions = {
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
 };
+
 app.use(cors(corsOptions));
 
-// ⚠️ Stripe webhook needs raw body
+// ✅ Stripe webhook needs raw body
 app.use((req, res, next) => {
   if (req.originalUrl === "/api/v1/stripe/webhook") {
     let rawBody = "";
@@ -104,27 +109,29 @@ app.use((req, res, next) => {
       next();
     });
   } else {
-    express.json()(req, res, next); // normal parser
+    express.json()(req, res, next); // Normal parser for everything else
   }
 });
 
-// Parse cookies
+// ✅ Parse cookies
 app.use(cookieParser());
 
-// Cloudinary configuration
+// ✅ Cloudinary configuration
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Routes
+// ✅ Test route for Render/Postman
 app.get("/api/v1/user/login", (_, res) => {
   res.end("Welcome to my server!");
 });
+
+// ✅ API routes
 app.use("/api/v1", customersRoute);
 app.use("/api/v1", adminRoute);
 app.use("/api/v1/stripe", stripeRoutes);
 
-// Error handling middleware
+// ✅ Error handling
 app.use(errorHandlerMiddleware);
