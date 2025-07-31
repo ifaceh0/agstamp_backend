@@ -79,6 +79,10 @@ const allowedOrigins = [
 
 
 console.log("✅ Allowed Origins:", allowedOrigins);
+if (allowedOrigins.length === 0) {
+  console.warn("❗ No FRONTEND_URL values found. Check your .env file or Render environment variables.");
+}
+
 
 const corsOptions = {
   origin: function (origin, callback) {
