@@ -72,16 +72,17 @@ dotenv.config({ path: path.join(path.resolve(), "Config", "config.env") });
 export const app = express();
 
 // ✅ Setup CORS middleware FIRST
-const allowedOrigins = (process.env.FRONTEND_URL || "")
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter((origin) => origin); // Remove empty strings
+const allowedOrigins = [
+  "https://agstamp-frontend.vercel.app", // your deployed frontend
+  "http://localhost:5173",               // dev local
+];
+
 
 console.log("✅ Allowed Origins:", allowedOrigins);
 
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log("🌐 CORS Origin Attempt:", origin);
+    console.log(`🌐 Incoming CORS Origin: ${origin || "NO ORIGIN HEADER"}`);
     if (!origin || allowedOrigins.includes(origin)) {
       console.log("✅ CORS Allowed:", origin);
       callback(null, true);
