@@ -66,16 +66,15 @@ import { adminRoute } from "./Routes/adminRoute.js";
 import stripeRoutes from "./Routes/stripeRoutes.js";
 
 // ✅ Load environment variables
-dotenv.config({ path: path.join(path.resolve(), "Config", "config.env") });
+dotenv.config({ path: path.join(path.resolve(), "./Config/config.env") });
 
 // ✅ Create Express app
 export const app = express();
 
 // ✅ Setup CORS middleware FIRST
-const allowedOrigins = [
-  "https://agstamp-frontend.vercel.app", // your deployed frontend
-  "http://localhost:5173",               // dev local
-];
+const allowedOrigins = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim());
 
 
 console.log("✅ Allowed Origins:", allowedOrigins);
