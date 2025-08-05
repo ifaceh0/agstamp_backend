@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 export async function dbCon(){
     try {
-       await mongoose.connect(`mongodb+srv://${process.env.MONGOUSER}:${process.env.MONGOPASS}@cluster0.evqepx3.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`)
+       await mongoose.connect(`mongodb+srv://${process.env.MONGOUSER}:${process.env.MONGOPASS}@cluster0.zlxnl2f.mongodb.net/ag_stamp?retryWrites=true&w=majority`)
         console.log("connected to mongodb sucessfully!")
     } catch (error) {
        console.log(error) 
