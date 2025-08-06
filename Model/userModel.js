@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         required: [true, 'Role is required'],
-        default: 'user'
+        default: 'admin'
       }  
 }, {
     timestamps: true
