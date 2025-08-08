@@ -65,34 +65,57 @@ import { errorHandlerMiddleware } from "./Middleware/errorMiddleWare.js";
 import { adminRoute } from "./Routes/adminRoute.js";
 import stripeRoutes from "./Routes/stripeRoutes.js";
 
-// Load environment variables
-dotenv.config({ path: path.join(path.resolve(), "/Config/config.env") });
+// ✅ Load environment variables
+dotenv.config({ path: path.join(path.resolve(), "./Config/config.env") });
 
-// Create app
+// ✅ Create Express app
 export const app = express();
 
-// ✅ CORS middleware FIRST
-const allowedOrigins = (process.env.FRONTEND_URL || "")
-  .split(",")
-  .map((origin) => origin.trim());
+// ✅ Setup CORS middleware FIRST
+// const allowedOrigins = (process.env.FRONTEND_URL || "")
+//   .split(",")
+//   .map((origin) => origin.trim());
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    console.log("CORS Origin:", origin);
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn("Blocked by CORS:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+
+// console.log("✅ Allowed Origins:", allowedOrigins);
+// if (allowedOrigins.length === 0) {
+//   console.warn("❗ No FRONTEND_URL values found. Check your .env file or Render environment variables.");
+// }
+
+
+// const corsOptions = {
+//   origin: function (origin, callback) {
+//     console.log(`🌐 Incoming CORS Origin: ${origin || "NO ORIGIN HEADER"}`);
+//     if (!origin || allowedOrigins.includes(origin)) {
+//       console.log("✅ CORS Allowed:", origin);
+//       callback(null, true);
+//     } else {
+//       console.warn("❌ CORS Blocked:", origin);
+//       callback(new Error("Not allowed by CORS"));
+//     }
+//   },
+//   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+//   credentials: true,
+//   allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
+// };
+
+// app.use(cors(corsOptions));
+
+app.use(cors({
+  origin: ["https://agstamp-frontend.vercel.app","http://localhost:5173"],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
-};
-app.use(cors(corsOptions));
+  optionsSuccessStatus: 200,
+}))
 
-// ⚠️ Stripe webhook needs raw body
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
+
+// ✅ Stripe webhook needs raw body
 app.use((req, res, next) => {
   if (req.originalUrl === "/api/v1/stripe/webhook") {
     let rawBody = "";
@@ -104,27 +127,24 @@ app.use((req, res, next) => {
       next();
     });
   } else {
-    express.json()(req, res, next); // normal parser
+    express.json()(req, res, next); // Normal parser for everything else
   }
 });
 
-// Parse cookies
+// ✅ Parse cookies
 app.use(cookieParser());
 
-// Cloudinary configuration
+// ✅ Cloudinary configuration
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Routes
-app.get("/api/v1/user/login", (_, res) => {
-  res.end("Welcome to my server!");
-});
+// ✅ API routes
 app.use("/api/v1", customersRoute);
 app.use("/api/v1", adminRoute);
 app.use("/api/v1/stripe", stripeRoutes);
 
-// Error handling middleware
+// ✅ Error handling
 app.use(errorHandlerMiddleware);
