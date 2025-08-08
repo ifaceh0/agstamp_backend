@@ -71,6 +71,11 @@ dotenv.config({ path: path.join(path.resolve(), "./Config/config.env") });
 // ✅ Create Express app
 export const app = express();
 
+// ✅ Parse cookies
+app.use(cookieParser());
+
+
+
 // ✅ Setup CORS middleware FIRST
 // const allowedOrigins = (process.env.FRONTEND_URL || "")
 //   .split(",")
@@ -114,31 +119,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// ✅ Stripe webhook raw body
+app.use("/api/v1/stripe/webhook", express.raw({ type: "application/json" }));
 
-// ✅ Stripe webhook needs raw body
-app.use((req, res, next) => {
-  if (req.originalUrl === "/api/v1/stripe/webhook") {
-    let rawBody = "";
-    req.on("data", (chunk) => {
-      rawBody += chunk.toString();
-    });
-    req.on("end", () => {
-      req.rawBody = rawBody;
-      next();
-    });
-  } else {
-    express.json()(req, res, next); // Normal parser for everything else
-  }
-});
 
-// ✅ Parse cookies
-app.use(cookieParser());
+// ✅ JSON parser for all other routes
+app.use(express.json());
+
 
 // ✅ Cloudinary configuration
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// ✅ Debug log to check if cookies arrive
+app.use((req, res, next) => {
+  console.log("Raw cookie header:", req.headers.cookie);
+  console.log("Parsed cookies:", req.cookies);
+  next();
 });
 
 // ✅ API routes
