@@ -126,7 +126,7 @@ app.use("/api/v1/stripe/webhook", express.raw({ type: "application/json" }));
 // ✅ JSON parser for all other routes
 app.use(express.json());
 
-
+console.log("CLOUDINARY_CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME);
 // ✅ Cloudinary configuration
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
