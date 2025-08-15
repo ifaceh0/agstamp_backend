@@ -107,7 +107,7 @@ app.use(cookieParser());
 // app.use(cors(corsOptions));
 
 app.use(cors({
-  origin: ["https://agstamp-frontend.vercel.app","http://localhost:5173"],
+  origin: ["https://agstamp-frontend.vercel.app","http://localhost:5173","https://agstamp.com"],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
