@@ -6,9 +6,6 @@ import { ErrorHandler } from '../Utils/ErrorHandler.js';
 import PhotoModel from '../Model/WaveModel.js';
 import CarouselModel from '../Model/CarouselModel.js';
 
-// Cloudinary Config
-
-
 export const createStamp = synchFunc(async (req, res) => {
   const bb = busboy({ headers: req.headers });
 
@@ -40,10 +37,10 @@ export const createStamp = synchFunc(async (req, res) => {
           // SFTP connection
           const sftp = new SFTPClient();
           await sftp.connect({
-            host: 'home209772675.1and1-data.host', // your IONOS SFTP host
-            port: 22,
-            username: 'u45688540',                 // your IONOS user
-            password: 'AGStamp94523',        // your IONOS password
+            host: process.env.SFTP_HOST, // your IONOS SFTP host
+            port: process.env.SFTP_PORT, // your IONOS SFTP port
+            username: process.env.SFTP_USER,                 // your IONOS user
+            password: process.env.SFTP_PASS,        // your IONOS password
           });
 
           // Upload to /images on your server
@@ -104,19 +101,41 @@ export const createStamp = synchFunc(async (req, res) => {
   });
 });
 
-
-
 export const deleteStamp = synchFunc(async (req, res) => {
   const { id } = req.params;
 
   const stamp = await StampModel.findById(id);
-  if (!stamp) throw new ErrorHandler(404, 'Stamp not found');
+  if (!stamp) throw new ErrorHandler(404, "Stamp not found");
 
+  // If there are images, delete them from SFTP server
   if (stamp.images.length) {
-    const publicIds = stamp.images.map(img => img.publicId);
-    await cloudinary.api.delete_resources(publicIds);
+    try {
+      const sftp = new SFTPClient();
+      await sftp.connect({
+        host: process.env.SFTP_HOST, // IONOS SFTP host
+        port: process.env.SFTP_PORT,
+        username: process.env.SFTP_USER,                // IONOS user
+        password: process.env.SFTP_PASS,             // IONOS password
+      });
+
+      for (const img of stamp.images) {
+        const filePath = `/images/${img.publicId}`;
+        try {
+          await sftp.delete(filePath);
+          console.log(`Deleted: ${filePath}`);
+        } catch (err) {
+          console.warn(`Failed to delete ${filePath}:`, err.message);
+        }
+      }
+
+      await sftp.end();
+    } catch (err) {
+      console.error("SFTP delete error:", err);
+      throw new ErrorHandler(500, "Failed to delete images from SFTP server");
+    }
   }
 
+  // Delete stamp from database
   await StampModel.findByIdAndDelete(id);
 
   const stamps = await StampModel.find();
@@ -124,10 +143,9 @@ export const deleteStamp = synchFunc(async (req, res) => {
   res.status(200).json({
     success: true,
     stamps,
-    message: 'Stamp and associated images deleted successfully'
+    message: "Stamp and associated images deleted successfully",
   });
 });
-
 
 export const uploadPhoto = async (req, res) => {
   try {
@@ -137,66 +155,65 @@ export const uploadPhoto = async (req, res) => {
     let fileProcessingStarted = false;
     let uploadPromise;
 
-    bb.on('file', (fieldname, file, info) => {
+    bb.on("file", (fieldname, file, info) => {
       fileProcessingStarted = true;
-      const { mimeType } = info;
+      const { filename, mimeType } = info;
 
-      if (!mimeType.startsWith('image/')) {
+      if (!mimeType.startsWith("image/")) {
         file.resume();
         return;
       }
 
       const chunks = [];
 
-      file.on('data', (chunk) => chunks.push(chunk));
+      file.on("data", (chunk) => chunks.push(chunk));
 
       uploadPromise = new Promise((resolve, reject) => {
-        file.on('end', async () => {
+        file.on("end", async () => {
           try {
             if (chunks.length === 0) {
-              return reject(new Error('Empty file received'));
+              return reject(new ErrorHandler(400, "Empty file received"));
             }
 
             const buffer = Buffer.concat(chunks);
 
-            // if (buffer.length > 10 * 1024 * 1024) {
-            //   return reject(new Error('File size exceeds 10MB limit'));
-            // }
-
-            // Check for existing photo and delete it
-            const existingPhoto = await PhotoModel.findOne();
-            if (existingPhoto) {
-              // Delete from Cloudinary
-              await cloudinary.uploader.destroy(existingPhoto.publicId);
-              // Delete from MongoDB
-              await PhotoModel.deleteOne({ _id: existingPhoto._id });
-            }
-
-            // Upload new photo to Cloudinary
-            const cloudinaryResult = await new Promise((innerResolve, innerReject) => {
-              const uploadStream = cloudinary.uploader.upload_stream(
-                { folder: 'user-uploads' },
-                (error, result) => {
-                  if (error || !result) {
-                    return innerReject(error || new Error('Cloudinary upload failed'));
-                  }
-                  innerResolve(result);
-                }
-              );
-
-              uploadStream.on('error', innerReject);
-              uploadStream.end(buffer);
+            const sftp = new SFTPClient();
+            await sftp.connect({
+              host: process.env.SFTP_HOST, // IONOS SFTP host
+              port: process.env.SFTP_PORT,
+              username: process.env.SFTP_USER,                // IONOS user
+              password: process.env.SFTP_PASS,             // IONOS password
             });
 
-            // Save to MongoDB
+            // 🗑 Delete existing photo if present
+            const existingPhoto = await PhotoModel.findOne();
+            if (existingPhoto) {
+              try {
+                await sftp.delete(existingPhoto.path); // delete from server
+              } catch (err) {
+                console.warn("Old file not found on SFTP:", err.message);
+              }
+              await PhotoModel.deleteOne({ _id: existingPhoto._id }); // delete from DB
+            }
+
+            // 📂 Define remote path
+            const remoteDir = "/images";
+            const remoteFilename = `${Date.now()}-${filename}`;
+            const remotePath = path.posix.join(remoteDir, remoteFilename);
+
+            // ✅ Upload to SFTP
+            await sftp.put(buffer, remotePath);
+            await sftp.end();
+
+            // 💾 Save to DB
             const newPhoto = await PhotoModel.create({
-              publicId: cloudinaryResult.public_id,
-              url: cloudinaryResult.secure_url,
+              path: remotePath,
+              url: `https://agstamp.com${remotePath}`,
             });
 
             resolve({
               id: newPhoto._id,
-              publicId: newPhoto.publicId,
+              path: newPhoto.path,
               url: newPhoto.url,
               createdAt: newPhoto.createdAt,
             });
@@ -205,18 +222,18 @@ export const uploadPhoto = async (req, res) => {
           }
         });
 
-        file.on('error', reject);
+        file.on("error", reject);
       });
     });
 
-    bb.on('error', (err) => {
+    bb.on("error", (err) => {
       throw err;
     });
 
     const pipelinePromise = new Promise((resolve, reject) => {
-      bb.on('close', async () => {
+      bb.on("close", async () => {
         if (!fileProcessingStarted) {
-          return reject(new Error('No file was uploaded'));
+          return reject(new ErrorHandler(400, "No file was uploaded"));
         }
 
         try {
@@ -227,7 +244,7 @@ export const uploadPhoto = async (req, res) => {
         }
       });
 
-      req.on('error', reject);
+      req.on("error", reject);
       req.pipe(bb);
     });
 
@@ -239,10 +256,10 @@ export const uploadPhoto = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error("Upload error:", error);
     return res.status(400).json({
       success: false,
-      message: error.message || 'File upload failed',
+      message: error.message || "File upload failed",
     });
   }
 };
@@ -253,14 +270,16 @@ export const createCarousel = synchFunc(async (req, res) => {
   let name = "";
   const uploadPromises = [];
 
+  // 📝 Get carousel name
   bb.on("field", (fieldname, val) => {
     if (fieldname === "name") {
       name = val.trim();
     }
   });
 
+  // 📂 Handle file uploads
   bb.on("file", (fieldname, file, info) => {
-    const { mimeType } = info;
+    const { filename, mimeType } = info;
 
     if (!mimeType.startsWith("image/")) {
       throw new ErrorHandler(400, "Only image files are allowed!");
@@ -271,27 +290,44 @@ export const createCarousel = synchFunc(async (req, res) => {
     file.on("data", (chunk) => chunks.push(chunk));
 
     const uploadPromise = new Promise((resolve, reject) => {
-      file.on("end", () => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { folder: "carousel" },
-          (error, result) => {
-            if (error || !result) {
-              reject(new ErrorHandler(500, "Failed to upload image to Cloudinary"));
-            } else {
-              resolve({
-                publicId: result.public_id,
-                publicUrl: result.secure_url,
-              });
-            }
-          }
-        );
-        uploadStream.end(Buffer.concat(chunks));
+      file.on("end", async () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+
+          const sftp = new SFTPClient();
+          await sftp.connect({
+            host: process.env.SFTP_HOST, // IONOS SFTP host
+            port: process.env.SFTP_PORT,
+            username: process.env.SFTP_USER,                // IONOS user
+            password: process.env.SFTP_PASS,             // IONOS password
+          });
+
+          // 📂 Remote path
+          const remoteDir = "/images";
+          const remoteFilename = `${Date.now()}-${filename}`;
+          const remotePath = path.posix.join(remoteDir, remoteFilename);
+
+          // ✅ Upload to SFTP
+          await sftp.put(buffer, remotePath);
+          await sftp.end();
+
+          resolve({
+            publicId: remoteFilename,
+            publicUrl: `https://agstamp.com${remotePath}`,
+          });
+        } catch (err) {
+          console.error("SFTP upload error:", err);
+          reject(new ErrorHandler(500, "Failed to upload image to SFTP"));
+        }
       });
+
+      file.on("error", reject);
     });
 
     uploadPromises.push(uploadPromise);
   });
 
+  // Wait for form parsing
   await new Promise((resolve, reject) => {
     bb.on("finish", resolve);
     bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
@@ -302,18 +338,13 @@ export const createCarousel = synchFunc(async (req, res) => {
     throw new ErrorHandler(400, "Carousel name is required");
   }
 
-  let images = [];
-
-  try {
-    images = await Promise.all(uploadPromises);
-    if (!images.length) throw new ErrorHandler(400, "At least one image is required");
-  } catch (error) {
-    if (images.length) {
-      await cloudinary.api.delete_resources(images.map((img) => img.publicId));
-    }
-    throw error;
+  // Upload all images
+  const images = await Promise.all(uploadPromises);
+  if (!images.length) {
+    throw new ErrorHandler(400, "At least one image is required");
   }
 
+  // Save carousel to DB
   const newCarousel = await CarouselModel.create({
     name,
     images,
@@ -333,6 +364,7 @@ export const updateCarousel = synchFunc(async (req, res) => {
   const formData = {};
   const uploadPromises = [];
 
+  // 📝 Handle fields
   bb.on("field", (fieldname, val) => {
     if (fieldname === "removedImages") {
       try {
@@ -345,62 +377,105 @@ export const updateCarousel = synchFunc(async (req, res) => {
     }
   });
 
+  // 📂 Handle file uploads
   bb.on("file", (fieldname, file, info) => {
-    const { mimeType } = info;
-    const chunks = [];
+    const { filename, mimeType } = info;
 
     if (!mimeType.startsWith("image/")) {
       throw new ErrorHandler(400, "Only image files are allowed!");
     }
 
+    const chunks = [];
+
     file.on("data", (chunk) => chunks.push(chunk));
 
     const uploadPromise = new Promise((resolve, reject) => {
-      file.on("end", () => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { folder: "carousel" },
-          (error, result) => {
-            if (error || !result) {
-              reject(new ErrorHandler(500, "Cloudinary upload failed"));
-            } else {
-              resolve({
-                publicId: result.public_id,
-                publicUrl: result.secure_url,
-              });
-            }
-          }
-        );
-        uploadStream.end(Buffer.concat(chunks));
+      file.on("end", async () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+
+          const sftp = new SFTPClient();
+          await sftp.connect({
+            host: process.env.SFTP_HOST, // IONOS SFTP host
+            port: process.env.SFTP_PORT,
+            username: process.env.SFTP_USER,                // IONOS user
+            password: process.env.SFTP_PASS,             // IONOS password
+          });
+
+          const remoteDir = "/images";
+          const remoteFilename = `${Date.now()}-${filename}`;
+          const remotePath = path.posix.join(remoteDir, remoteFilename);
+
+          await sftp.put(buffer, remotePath);
+          await sftp.end();
+
+          resolve({
+            publicId: remoteFilename,
+            publicUrl: `https://agstamp.com${remotePath}`,
+          });
+        } catch (err) {
+          console.error("SFTP upload error:", err);
+          reject(new ErrorHandler(500, "Failed to upload image to SFTP"));
+        }
       });
+
+      file.on("error", reject);
     });
 
     uploadPromises.push(uploadPromise);
   });
 
+  // Wait for busboy finish
   await new Promise((resolve, reject) => {
     bb.on("finish", resolve);
     bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
     req.pipe(bb);
   });
 
+  // 🔍 Find existing carousel
   const existingCarousel = await CarouselModel.findById(id);
   if (!existingCarousel) throw new ErrorHandler(404, "Carousel not found");
 
-  // Remove old images if specified
+  // 🗑 Remove old images from SFTP if specified
   if (formData.removedImages?.length) {
-    await cloudinary.api.delete_resources(formData.removedImages);
-    existingCarousel.images = existingCarousel.images.filter(
-      (img) => !formData.removedImages.includes(img.publicId)
-    );
+    try {
+      const sftp = new SFTPClient();
+      await sftp.connect({
+        host: process.env.SFTP_HOST, // IONOS SFTP host
+        port: process.env.SFTP_PORT,
+        username: process.env.SFTP_USER,                // IONOS user
+        password: process.env.SFTP_PASS,
+      });
+
+      for (const publicId of formData.removedImages) {
+        const filePath = `/images/${publicId}`;
+        try {
+          await sftp.delete(filePath);
+          console.log(`Deleted: ${filePath}`);
+        } catch (err) {
+          console.warn(`Failed to delete ${filePath}:`, err.message);
+        }
+      }
+
+      await sftp.end();
+
+      // Remove them from DB object too
+      existingCarousel.images = existingCarousel.images.filter(
+        (img) => !formData.removedImages.includes(img.publicId)
+      );
+    } catch (err) {
+      console.error("SFTP delete error:", err);
+      throw new ErrorHandler(500, "Failed to delete images from SFTP server");
+    }
   }
 
-  // Upload new images and add them to the model
+  // 📥 Add new uploaded images
   const uploadedImages = await Promise.all(uploadPromises);
   if (uploadedImages.length) {
     existingCarousel.images.push(...uploadedImages);
   }
 
-  // Update name if provided
+  // ✏️ Update name if provided
   if (formData.name !== undefined) {
     existingCarousel.name = formData.name.trim();
   }
@@ -420,12 +495,35 @@ export const deleteCarousel = synchFunc(async (req, res) => {
   const carousel = await CarouselModel.findById(id);
   if (!carousel) throw new ErrorHandler(404, "Carousel not found");
 
-  // Delete associated Cloudinary images
+  // 🗑 Delete associated images from SFTP
   if (carousel.images.length) {
-    const publicIds = carousel.images.map((img) => img.publicId);
-    await cloudinary.api.delete_resources(publicIds);
+    try {
+      const sftp = new SFTPClient();
+      await sftp.connect({
+        host: process.env.SFTP_HOST, // IONOS SFTP host
+        port: process.env.SFTP_PORT,
+        username: process.env.SFTP_USER,                // IONOS user
+        password: process.env.SFTP_PASS,             // IONOS password
+      });
+
+      for (const img of carousel.images) {
+        const filePath = `/images/${img.publicId}`;
+        try {
+          await sftp.delete(filePath);
+          console.log(`Deleted: ${filePath}`);
+        } catch (err) {
+          console.warn(`Failed to delete ${filePath}:`, err.message);
+        }
+      }
+
+      await sftp.end();
+    } catch (err) {
+      console.error("SFTP delete error:", err);
+      throw new ErrorHandler(500, "Failed to delete images from SFTP server");
+    }
   }
 
+  // 🗂 Delete carousel document
   await CarouselModel.findByIdAndDelete(id);
 
   const carousels = await CarouselModel.find();
@@ -436,4 +534,3 @@ export const deleteCarousel = synchFunc(async (req, res) => {
     message: "Carousel and associated images deleted successfully",
   });
 });
-
