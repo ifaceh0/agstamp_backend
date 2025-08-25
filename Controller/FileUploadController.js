@@ -1,5 +1,5 @@
 import busboy from 'busboy';
-import { v2 as cloudinary } from 'cloudinary';
+import SFTPClient from 'ssh2-sftp-client';
 import StampModel from '../Model/stampModel.js';
 import { synchFunc } from '../Utils/SynchFunc.js';
 import { ErrorHandler } from '../Utils/ErrorHandler.js';
@@ -7,11 +7,7 @@ import PhotoModel from '../Model/WaveModel.js';
 import CarouselModel from '../Model/CarouselModel.js';
 
 // Cloudinary Config
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+
 
 export const createStamp = synchFunc(async (req, res) => {
   const bb = busboy({ headers: req.headers });
@@ -22,38 +18,46 @@ export const createStamp = synchFunc(async (req, res) => {
     price: 0,
     stock: 0,
     beginDate: '',
-    categories: '', // added here
+    categories: '',
   };
 
   const uploadPromises = [];
 
   bb.on('file', (fieldname, file, info) => {
-    const { mimeType } = info;
-
+    const { filename, mimeType } = info;
     if (!mimeType.startsWith('image/')) {
       throw new ErrorHandler(400, 'Only image files are allowed!');
     }
 
     const chunks = [];
-
     file.on('data', (chunk) => chunks.push(chunk));
 
     const uploadPromise = new Promise((resolve, reject) => {
-      file.on('end', () => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { folder: 'stamps' },
-          (error, result) => {
-            if (error || !result) {
-              reject(new ErrorHandler(500, 'Failed to upload image to Cloudinary'));
-            } else {
-              resolve({
-                publicId: result.public_id,
-                publicUrl: result.secure_url,
-              });
-            }
-          }
-        );
-        uploadStream.end(Buffer.concat(chunks));
+      file.on('end', async () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+
+          // SFTP connection
+          const sftp = new SFTPClient();
+          await sftp.connect({
+            host: 'home209772675.1and1-data.host', // your IONOS SFTP host
+            port: 22,
+            username: 'u45688540',                 // your IONOS user
+            password: 'AGStamp94523',        // your IONOS password
+          });
+
+          // Upload to /images on your server
+          await sftp.put(buffer, `/images/${filename}`);
+          await sftp.end();
+
+          resolve({
+            publicId: filename,
+            publicUrl: `https://agstamp.com/images/${filename}`,
+          });
+        } catch (err) {
+          console.error(err);
+          reject(new ErrorHandler(500, 'SFTP upload failed'));
+        }
       });
     });
 
@@ -74,32 +78,18 @@ export const createStamp = synchFunc(async (req, res) => {
     req.pipe(bb);
   });
 
-  // Validations
   if (!formData.name.trim()) throw new ErrorHandler(400, 'Stamp name is required');
   if (!formData.description.trim()) throw new ErrorHandler(400, 'Stamp description is required');
   if (formData.price < 0) throw new ErrorHandler(400, 'Price must be a positive number');
   if (formData.stock < 0) throw new ErrorHandler(400, 'Stock cannot be negative');
-
-  if (!formData.beginDate) {
-    throw new ErrorHandler(400, 'Begin date is required');
-  }
+  if (!formData.beginDate) throw new ErrorHandler(400, 'Begin date is required');
 
   const beginDateParsed = new Date(formData.beginDate);
-  if (isNaN(beginDateParsed.getTime())) {
-    throw new ErrorHandler(400, 'Invalid begin date format');
-  }
+  if (isNaN(beginDateParsed.getTime())) throw new ErrorHandler(400, 'Invalid begin date format');
 
-  let images = [];
-
-  try {
-    images = await Promise.all(uploadPromises);
-    if (!images.length) throw new ErrorHandler(400, 'At least one image is required');
-  } catch (error) {
-    if (images.length) {
-      await cloudinary.api.delete_resources(images.map((img) => img.publicId));
-    }
-    throw error;
-  }
+  // Upload all images via SFTP
+  const images = await Promise.all(uploadPromises);
+  if (!images.length) throw new ErrorHandler(400, 'At least one image is required');
 
   const newStamp = await StampModel.create({
     ...formData,
@@ -113,6 +103,7 @@ export const createStamp = synchFunc(async (req, res) => {
     stamp: newStamp,
   });
 });
+
 
 
 export const deleteStamp = synchFunc(async (req, res) => {
