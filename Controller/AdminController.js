@@ -66,7 +66,7 @@ const parseMultipartForm = (req) => {
           try {
             const buffer = Buffer.concat(chunks);
             // We use your existing SFTP upload function
-            const uploaded = await uploadBufferToSFTP(buffer, info.filename, "stamps");
+            const uploaded = await uploadBufferToSFTP(buffer, info.filename, "images");
             resolveFile(uploaded); // Resolve with the uploaded file info
           } catch (err) {
             rejectFile(err);
@@ -89,7 +89,7 @@ const parseMultipartForm = (req) => {
         // Resolve the main promise with all parsed data
         resolve({ fields, newImages });
       } catch (err) {
-        reject(new ErrorHandler(500, "SFTP upload failed during processing."));
+        reject(new ErrorHandler(500, `SFTP upload failed during processing: ${err.message}`));
       }
     });
 
