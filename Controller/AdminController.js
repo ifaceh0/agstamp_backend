@@ -70,13 +70,17 @@ export const updateStamp = synchFunc(async (req, res) => {
           );
 
           resolve({
-            path: uploaded.path, // stored file path on SFTP
-            filename: uploaded.filename, // original name
+            path: uploaded.path,
+            filename: uploaded.filename,
           });
         } catch (err) {
           reject(new ErrorHandler(500, "SFTP upload failed: " + err.message));
         }
       });
+
+      file.on("error", (err) =>
+        reject(new ErrorHandler(500, "File stream error: " + err.message))
+      );
     });
 
     uploadPromises.push(uploadPromise);
@@ -96,7 +100,7 @@ export const updateStamp = synchFunc(async (req, res) => {
       try {
         formData[fieldname] = JSON.parse(val);
       } catch {
-        formData[fieldname] = [];
+        formData[fieldname] = Array.isArray(val) ? val : [];
       }
     } else {
       formData[fieldname] = ["price", "stock", "active"].includes(fieldname)
@@ -107,16 +111,18 @@ export const updateStamp = synchFunc(async (req, res) => {
     }
   });
 
+  // 🔹 Wait until parsing is done
   await new Promise((resolve, reject) => {
     bb.on("finish", resolve);
     bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
     req.pipe(bb);
   });
 
+  // 🔹 Update DB
   const existingStamp = await StampModel.findById(id);
   if (!existingStamp) throw new ErrorHandler(404, "Stamp not found");
 
-  // 🔹 Delete removed images from INOS
+  // Delete removed images
   if (formData.removedImages?.length) {
     await deleteFiles(formData.removedImages);
     existingStamp.images = existingStamp.images.filter(
@@ -124,13 +130,13 @@ export const updateStamp = synchFunc(async (req, res) => {
     );
   }
 
-  // 🔹 Upload new images
+  // Upload new images
   const uploadedImages = await Promise.all(uploadPromises);
   if (uploadedImages.length) {
     existingStamp.images.push(...uploadedImages);
   }
 
-  // 🔹 Update only provided fields
+  // Update fields
   const updatableFields = [
     "name",
     "description",
@@ -154,6 +160,7 @@ export const updateStamp = synchFunc(async (req, res) => {
     stamp: existingStamp,
   });
 });
+
 
 export const allCarousel = synchFunc(async (_, res) => {
   const Carousels = await CarouselModel.find();
