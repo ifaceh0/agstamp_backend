@@ -190,7 +190,7 @@ export const uploadPhoto = async (req, res) => {
             const existingPhoto = await PhotoModel.findOne();
             if (existingPhoto) {
               try {
-                await sftp.delete(existingPhoto.path); // delete from server
+                await sftp.delete(`/images/${existingPhoto.publicId}`); // delete from server
               } catch (err) {
                 console.warn("Old file not found on SFTP:", err.message);
               }
@@ -208,7 +208,7 @@ export const uploadPhoto = async (req, res) => {
 
             // 💾 Save to DB
             const newPhoto = await PhotoModel.create({
-              path: remotePath,
+              publicId: remoteFilename,
               url: `https://agstamp.com${remotePath}`,
             });
 
