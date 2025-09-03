@@ -5,6 +5,7 @@ import { synchFunc } from '../Utils/SynchFunc.js';
 import { ErrorHandler } from '../Utils/ErrorHandler.js';
 import PhotoModel from '../Model/WaveModel.js';
 import CarouselModel from '../Model/CarouselModel.js';
+import path from 'path';
 
 export const createStamp = synchFunc(async (req, res) => {
   const bb = busboy({ headers: req.headers });
@@ -231,7 +232,7 @@ export const uploadPhoto = async (req, res) => {
     });
 
     const pipelinePromise = new Promise((resolve, reject) => {
-      bb.on("close", async () => {
+      bb.on("finish", async () => {
         if (!fileProcessingStarted) {
           return reject(new ErrorHandler(400, "No file was uploaded"));
         }
