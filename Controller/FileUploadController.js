@@ -148,6 +148,33 @@ export const deleteStamp = synchFunc(async (req, res) => {
   });
 });
 
+export const uploadBufferToSFTP = async (buffer, filename, folder = "images") => {
+  const sftp = new SFTPClient();
+  try {
+    await sftp.connect({
+      host: process.env.SFTP_HOST,
+      port: process.env.SFTP_PORT,
+      username: process.env.SFTP_USER,
+      password: process.env.SFTP_PASS,
+    });
+
+    const remoteDir = `/${folder}`;
+    const remoteFilename = `${Date.now()}-${filename}`;
+    const remotePath = path.posix.join(remoteDir, remoteFilename);
+
+    await sftp.put(buffer, remotePath);
+    await sftp.end();
+
+    return {
+      publicId: remoteFilename,
+      publicUrl: `https://agstamp.com${remotePath}`,
+    };
+  } catch (err) {
+    throw new ErrorHandler(500, "SFTP upload failed: " + err.message);
+  }
+};
+
+
 export const uploadPhoto = async (req, res) => {
   try {
     const bb = busboy({ headers: req.headers });
