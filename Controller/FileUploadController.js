@@ -45,7 +45,8 @@ export const createStamp = synchFunc(async (req, res) => {
           });
 
           // Upload to /images on your server
-          await sftp.put(buffer, `/images/${filename}`);
+          const remotePath = `/images/${filename}`;
+          await sftp.put(buffer, remotePath);
           await sftp.end();
 
           resolve({
