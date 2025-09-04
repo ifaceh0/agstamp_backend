@@ -226,7 +226,7 @@ export const uploadPhoto = async (req, res) => {
 
             // 📂 Define remote path
             const remoteDir = "/images";
-            const remoteFilename = `${Date.now()}-${filename}`;
+            const remoteFilename = filename;
             const remotePath = path.posix.join(remoteDir, remoteFilename);
 
             // ✅ Upload to SFTP
