@@ -23,6 +23,7 @@ export const createStamp = synchFunc(async (req, res) => {
 
   bb.on('file', (fieldname, file, info) => {
     const { filename, mimeType } = info;
+    console.log(`--- UPLOAD DEBUG --- The filename is: ${filename}`)
     if (!mimeType.startsWith('image/')) {
       throw new ErrorHandler(400, 'Only image files are allowed!');
     }
@@ -187,6 +188,7 @@ export const uploadPhoto = async (req, res) => {
     bb.on("file", (fieldname, file, info) => {
       fileProcessingStarted = true;
       const { filename, mimeType } = info;
+      console.log(`--- UPLOAD DEBUG --- The filename is: ${filename}`)
 
       if (!mimeType.startsWith("image/")) {
         file.resume();
