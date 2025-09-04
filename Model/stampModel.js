@@ -61,6 +61,19 @@ const StampSchema = new Schema(
   { timestamps: true }
 );
 
+// ✅ Prevent duplicate images globally
+StampSchema.pre("save", function (next) {
+  if (this.images && this.images.length > 0) {
+    const seen = new Set();
+    this.images = this.images.filter(img => {
+      if (seen.has(img.publicId)) return false;
+      seen.add(img.publicId);
+      return true;
+    });
+  }
+  next();
+});
+
 const stampModel = mongoose.model("Stamp", StampSchema);
 
 export default stampModel;
