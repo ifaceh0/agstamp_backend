@@ -161,7 +161,7 @@ export const uploadBufferToSFTP = async (buffer, filename, folder = "images") =>
     });
 
     const remoteDir = `/${folder}`;
-    const remoteFilename = `${Date.now()}-${filename}`;
+    const remoteFilename = filename;
     const remotePath = path.posix.join(remoteDir, remoteFilename);
 
     await sftp.put(buffer, remotePath);
@@ -335,7 +335,7 @@ export const createCarousel = synchFunc(async (req, res) => {
 
           // 📂 Remote path
           const remoteDir = "/images";
-          const remoteFilename = `${Date.now()}-${filename}`;
+          const remoteFilename = filename;
           const remotePath = path.posix.join(remoteDir, remoteFilename);
 
           // ✅ Upload to SFTP
@@ -434,7 +434,7 @@ export const updateCarousel = synchFunc(async (req, res) => {
           });
 
           const remoteDir = "/images";
-          const remoteFilename = `${Date.now()}-${filename}`;
+          const remoteFilename = filename;
           const remotePath = path.posix.join(remoteDir, remoteFilename);
 
           await sftp.put(buffer, remotePath);
