@@ -23,7 +23,6 @@ export const createStamp = synchFunc(async (req, res) => {
 
   bb.on('file', (fieldname, file, info) => {
     const { filename, mimeType } = info;
-    console.log(`--- UPLOAD DEBUG --- The filename is: ${filename}`)
     if (!mimeType.startsWith('image/')) {
       throw new ErrorHandler(400, 'Only image files are allowed!');
     }
@@ -35,6 +34,11 @@ export const createStamp = synchFunc(async (req, res) => {
       file.on('end', async () => {
         try {
           const buffer = Buffer.concat(chunks);
+          // 🔹 Generate new filename from Stamp Name
+          const ext = path.extname(filename); // keep original extension
+          const safeName = formData.name.replace(/\s+/g, "-").toLowerCase();
+          const finalFileName = `${safeName}${ext}`;
+
 
           // SFTP connection
           const sftp = new SFTPClient();
@@ -46,13 +50,13 @@ export const createStamp = synchFunc(async (req, res) => {
           });
 
           // Upload to /images on your server
-          const remotePath = `/images/${filename}`;
+          const remotePath = `/images/${finalFileName}`;
           await sftp.put(buffer, remotePath);
           await sftp.end();
 
           resolve({
-            publicId: filename,
-            publicUrl: `https://agstamp.com/images/${filename}`,
+            publicId: finalFileName,
+            publicUrl: `https://agstamp.com/images/${finalFileName}`,
           });
         } catch (err) {
           console.error(err);
