@@ -180,6 +180,7 @@ export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "ima
     return {
       publicId: finalFileName,
       url: `https://agstamp.com${remotePath}`,
+      publicUrl: `https://agstamp.com${remotePath}`,
     };
   } catch (err) {
     throw new ErrorHandler(500, "SFTP upload failed: " + err.message);
