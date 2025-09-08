@@ -190,112 +190,88 @@ export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "ima
 
 
 export const uploadPhoto = async (req, res) => {
-  try {
     const bb = busboy({ headers: req.headers });
 
     let formData = {};
-    let fileData = {}; // <--- 1. Object to hold file info
+    let fileData = {};
 
-    // Collect all text fields
     bb.on("field", (fieldname, val) => {
-      formData[fieldname] = val;
+        formData[fieldname] = val;
     });
 
-    // Collect file data into a buffer
     bb.on("file", (fieldname, file, info) => {
-      const { filename, mimeType } = info;
-
-      if (!mimeType.startsWith("image/")) {
-        return file.resume();
-      }
-      
-      const chunks = [];
-      file.on("data", (chunk) => chunks.push(chunk));
-      file.on("end", () => {
-        // <--- 2. Store the complete buffer and info
-        fileData = {
-          buffer: Buffer.concat(chunks),
-          filename,
-          mimeType,
-        };
-      });
+        const { filename, mimeType } = info;
+        if (!mimeType.startsWith("image/")) {
+            return file.resume();
+        }
+        const chunks = [];
+        file.on("data", (chunk) => chunks.push(chunk));
+        file.on("end", () => {
+            fileData = {
+                buffer: Buffer.concat(chunks),
+                filename,
+            };
+        });
     });
 
-    // This event fires ONLY after all fields and files are processed
     bb.on("finish", async () => {
-      try {
-        // <--- 3. All logic now happens here, safely
-        if (!fileData.buffer || fileData.buffer.length === 0) {
-          // Use a proper error handler or just send a response
-          return res.status(400).json({ success: false, message: "No file was uploaded." });
+        try {
+            // CRITICAL CHANGE: Use the stamp name from the form to find the document.
+            if (!formData.name) {
+                return res.status(400).json({ success: false, message: "Stamp name is required to perform an update." });
+            }
+
+            const stampToUpdate = await StampModel.findOne({ name: formData.name });
+            if (!stampToUpdate) {
+                return res.status(404).json({ success: false, message: `Stamp with name "${formData.name}" not found.` });
+            }
+
+            // CASE 1: A new file was uploaded.
+            if (fileData.buffer) {
+                // Delete old images from SFTP
+                const sftp = new SFTPClient();
+                await sftp.connect({ /* your sftp config */ });
+                for (const image of stampToUpdate.images) {
+                    try {
+                        await sftp.delete(`/images/${image.publicId}`);
+                    } catch (err) {
+                        console.warn(`Old file ${image.publicId} not found, continuing.`);
+                    }
+                }
+                await sftp.end();
+
+                // Upload the new image, using the stamp name for the filename
+                const newImage = await uploadBufferToSFTP(
+                    fileData.buffer,
+                    fileData.filename,
+                    "images",
+                    formData.name
+                );
+                
+                formData.images = [newImage];
+            }
+            // CASE 2: No new file was uploaded. Proceed to update text fields.
+
+            // Update the found stamp with the new form data.
+            const updatedStamp = await StampModel.findOneAndUpdate(
+                { name: formData.name }, // Find by name
+                { $set: formData },      // Set the new data
+                { new: true, runValidators: true } // Options
+            );
+
+            return res.status(200).json({
+                success: true,
+                message: "Stamp updated successfully!",
+                stamp: updatedStamp,
+            });
+
+        } catch (error) {
+            console.error("Update error:", error);
+            return res.status(500).json({ success: false, message: "Server error during update." });
         }
-        
-        if (!formData.name) {
-          return res.status(400).json({ success: false, message: "Stamp name is required." });
-        }
-
-        // ✅ Now it's safe to generate the filename
-        const ext = path.extname(fileData.filename);
-        const safeName = formData.name.replace(/\s+/g, "-").toLowerCase();
-        const finalFileName = `${safeName}${ext}`;
-
-        const sftp = new SFTPClient();
-        await sftp.connect({
-            host: process.env.SFTP_HOST,
-            port: process.env.SFTP_PORT,
-            username: process.env.SFTP_USER,
-            password: process.env.SFTP_PASS,
-        });
-
-        // Delete existing photo if present
-        const existingPhoto = await PhotoModel.findOne();
-        if (existingPhoto) {
-          try {
-            await sftp.delete(`/images/${existingPhoto.publicId}`);
-          } catch (err) {
-            console.warn("Old file not found on SFTP:", err.message);
-          }
-          await PhotoModel.deleteOne({ _id: existingPhoto._id });
-        }
-
-        // Define remote path and upload
-        const remoteDir = "/images";
-        const remotePath = path.posix.join(remoteDir, finalFileName);
-        await sftp.put(fileData.buffer, remotePath);
-        await sftp.end();
-
-        // Save to DB
-        const newPhoto = await PhotoModel.create({
-          publicId: finalFileName,
-          url: `https://agstamp.com${remotePath}`,
-          publicUrl: `https://agstamp.com${remotePath}`,
-        });
-        
-        // Send successful response
-        return res.status(201).json({
-          success: true,
-          data: {
-             id: newPhoto._id,
-             url: newPhoto.url,
-             createdAt: newPhoto.createdAt,
-          },
-        });
-
-      } catch (error) {
-        console.error("Upload processing error:", error);
-        return res.status(500).json({ success: false, message: "Error processing the upload." });
-      }
     });
 
     req.pipe(bb);
-
-  } catch (error) {
-    console.error("Upload error:", error);
-    return res.status(400).json({
-      success: false,
-      message: error.message || "File upload failed",
-    });
-  }
 };
 
 export const createCarousel = synchFunc(async (req, res) => {
