@@ -262,11 +262,12 @@ export const uploadPhoto = async (req, res) => {
             const newPhoto = await PhotoModel.create({
               publicId: finalFileName,
               url: `https://agstamp.com${remotePath}`,
+              publicUrl: `https://agstamp.com${remotePath}`,
             });
 
             resolve({
               id: newPhoto._id,
-              path: newPhoto.path,
+              //path: newPhoto.path,
               url: newPhoto.url,
               createdAt: newPhoto.createdAt,
             });
