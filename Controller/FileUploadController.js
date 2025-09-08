@@ -193,122 +193,101 @@ export const uploadPhoto = async (req, res) => {
   try {
     const bb = busboy({ headers: req.headers });
 
-    let uploadResult = null;
-    let fileProcessingStarted = false;
-    let uploadPromise;
-
     let formData = {};
-    // ✅ Collect fields (like "name")
+    let fileData = {}; // <--- 1. Object to hold file info
+
+    // Collect all text fields
     bb.on("field", (fieldname, val) => {
       formData[fieldname] = val;
     });
-    
 
+    // Collect file data into a buffer
     bb.on("file", (fieldname, file, info) => {
-      fileProcessingStarted = true;
       const { filename, mimeType } = info;
 
       if (!mimeType.startsWith("image/")) {
-        file.resume();
-        return;
+        return file.resume();
       }
+      
+      const chunks = [];
+      file.on("data", (chunk) => chunks.push(chunk));
+      file.on("end", () => {
+        // <--- 2. Store the complete buffer and info
+        fileData = {
+          buffer: Buffer.concat(chunks),
+          filename,
+          mimeType,
+        };
+      });
+    });
 
-      // 🔹 Generate new filename from Stamp Name
-        const ext = path.extname(filename); // keep original extension
+    // This event fires ONLY after all fields and files are processed
+    bb.on("finish", async () => {
+      try {
+        // <--- 3. All logic now happens here, safely
+        if (!fileData.buffer || fileData.buffer.length === 0) {
+          // Use a proper error handler or just send a response
+          return res.status(400).json({ success: false, message: "No file was uploaded." });
+        }
+        
+        if (!formData.name) {
+          return res.status(400).json({ success: false, message: "Stamp name is required." });
+        }
+
+        // ✅ Now it's safe to generate the filename
+        const ext = path.extname(fileData.filename);
         const safeName = formData.name.replace(/\s+/g, "-").toLowerCase();
         const finalFileName = `${safeName}${ext}`;
 
-      const chunks = [];
-
-      file.on("data", (chunk) => chunks.push(chunk));
-
-      uploadPromise = new Promise((resolve, reject) => {
-        file.on("end", async () => {
-          try {
-            if (chunks.length === 0) {
-              return reject(new ErrorHandler(400, "Empty file received"));
-            }
-
-            const buffer = Buffer.concat(chunks);
-
-            const sftp = new SFTPClient();
-            await sftp.connect({
-              host: process.env.SFTP_HOST, // IONOS SFTP host
-              port: process.env.SFTP_PORT,
-              username: process.env.SFTP_USER,                // IONOS user
-              password: process.env.SFTP_PASS,             // IONOS password
-            });
-
-            // 🗑 Delete existing photo if present
-            const existingPhoto = await PhotoModel.findOne();
-            if (existingPhoto) {
-              try {
-                await sftp.delete(`/images/${existingPhoto.publicId}`); // delete from server
-              } catch (err) {
-                console.warn("Old file not found on SFTP:", err.message);
-              }
-              await PhotoModel.deleteOne({ _id: existingPhoto._id }); // delete from DB
-            }
-
-            // 📂 Define remote path
-            const remoteDir = "/images";
-            const remoteFilename = finalFileName;
-            const remotePath = path.posix.join(remoteDir, remoteFilename);
-
-            // ✅ Upload to SFTP
-            await sftp.put(buffer, remotePath);
-            await sftp.end();
-
-            // 💾 Save to DB
-            const newPhoto = await PhotoModel.create({
-              publicId: finalFileName,
-              url: `https://agstamp.com${remotePath}`,
-              publicUrl: `https://agstamp.com${remotePath}`,
-            });
-
-            resolve({
-              id: newPhoto._id,
-              //path: newPhoto.path,
-              url: newPhoto.url,
-              createdAt: newPhoto.createdAt,
-            });
-          } catch (error) {
-            reject(error);
-          }
+        const sftp = new SFTPClient();
+        await sftp.connect({
+            host: process.env.SFTP_HOST,
+            port: process.env.SFTP_PORT,
+            username: process.env.SFTP_USER,
+            password: process.env.SFTP_PASS,
         });
 
-        file.on("error", reject);
-      });
-    });
-
-    bb.on("error", (err) => {
-      throw err;
-    });
-
-    const pipelinePromise = new Promise((resolve, reject) => {
-      bb.on("finish", async () => {
-        if (!fileProcessingStarted) {
-          return reject(new ErrorHandler(400, "No file was uploaded"));
+        // Delete existing photo if present
+        const existingPhoto = await PhotoModel.findOne();
+        if (existingPhoto) {
+          try {
+            await sftp.delete(`/images/${existingPhoto.publicId}`);
+          } catch (err) {
+            console.warn("Old file not found on SFTP:", err.message);
+          }
+          await PhotoModel.deleteOne({ _id: existingPhoto._id });
         }
 
-        try {
-          uploadResult = await uploadPromise;
-          resolve();
-        } catch (err) {
-          reject(err);
-        }
-      });
+        // Define remote path and upload
+        const remoteDir = "/images";
+        const remotePath = path.posix.join(remoteDir, finalFileName);
+        await sftp.put(fileData.buffer, remotePath);
+        await sftp.end();
 
-      req.on("error", reject);
-      req.pipe(bb);
+        // Save to DB
+        const newPhoto = await PhotoModel.create({
+          publicId: finalFileName,
+          url: `https://agstamp.com${remotePath}`,
+          publicUrl: `https://agstamp.com${remotePath}`,
+        });
+        
+        // Send successful response
+        return res.status(201).json({
+          success: true,
+          data: {
+             id: newPhoto._id,
+             url: newPhoto.url,
+             createdAt: newPhoto.createdAt,
+          },
+        });
+
+      } catch (error) {
+        console.error("Upload processing error:", error);
+        return res.status(500).json({ success: false, message: "Error processing the upload." });
+      }
     });
 
-    await pipelinePromise;
-
-    return res.status(201).json({
-      success: true,
-      data: uploadResult,
-    });
+    req.pipe(bb);
 
   } catch (error) {
     console.error("Upload error:", error);
