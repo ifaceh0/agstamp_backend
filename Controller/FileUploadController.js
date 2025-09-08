@@ -212,11 +212,10 @@ export const uploadPhoto = async (req, res) => {
         return;
       }
 
-      const ext = path.extname(filename); // keep original extension
-      const safeName = formData.name
-        ? formData.name.replace(/\s+/g, "-").toLowerCase()
-        : path.basename(filename, ext).toLowerCase(); // fallback if no "name" field
-      const finalFileName = `${safeName}${ext}`;
+      // 🔹 Generate new filename from Stamp Name
+        const ext = path.extname(filename); // keep original extension
+        const safeName = formData.name.replace(/\s+/g, "-").toLowerCase();
+        const finalFileName = `${safeName}${ext}`;
 
       const chunks = [];
 
