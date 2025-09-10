@@ -1,7 +1,7 @@
 import busboy from "busboy";
 import StampModel from "../Model/stampModel.js";
 import { synchFunc } from "../Utils/SynchFunc.js";
-import { uploadPhoto } from "./FileUploadController.js"; // 🔹 your uploader
+//import { uploadPhoto } from "./FileUploadController.js"; // 🔹 your uploader
 import CarouselModel from "../Model/CarouselModel.js";
 import subscriberModel from "../Model/subcriberModel.js";
 import { mail } from "../Helper/Mail.js";
@@ -17,8 +17,9 @@ import categoryModel from "../Model/CategoryModal.js";
 import SFTPClient from "ssh2-sftp-client";
 import { uploadBufferToSFTP } from "./FileUploadController.js";
 
-// 🔹 helper to delete files from INOS (SFTP)
-async function deleteFiles(filePaths = []) {
+// Helper to delete files from SFTP
+async function deleteFilesFromSFTP(publicIds = [], folder = "images") {
+  if (!publicIds.length) return;
   const sftp = new SFTPClient();
   try {
     await sftp.connect({
@@ -28,11 +29,19 @@ async function deleteFiles(filePaths = []) {
       password: process.env.SFTP_PASS,
     });
 
-    for (const filePath of filePaths) {
-      await sftp.delete(filePath);
+    for (const publicId of publicIds) {
+      const remotePath = `/${folder}/${publicId}`;
+      try {
+        await sftp.delete(remotePath);
+        console.log(`Successfully deleted ${remotePath}`);
+      } catch (err) {
+        console.warn(`Could not delete ${remotePath}: ${err.message}`);
+      }
     }
+  } catch (err) {
+    console.error(`SFTP connection or operation failed: ${err.message}`);
   } finally {
-    sftp.end();
+    await sftp.end();
   }
 }
 
@@ -102,79 +111,95 @@ const parseMultipartForm = (req) => {
 };
 
 
-// 🔹 YOUR NEW AND IMPROVED updateStamp FUNCTION 🔹
+// ✅ YOUR NEW, CONSOLIDATED updateStamp FUNCTION ✅
 export const updateStamp = synchFunc(async (req, res) => {
   const { id } = req.params;
-  let updateData = {}; // This will hold all our form data
-  let newImages = [];   // This will hold info about newly uploaded images
 
-  // STEP 1: Check the content type to decide how to parse the request
-  if (req.is('multipart/form-data')) {
-    // If we are uploading files, use our busboy helper
-    const parsed = await parseMultipartForm(req);
-    updateData = parsed.fields;
-    newImages = parsed.newImages;
-  } else {
-    // If no files are uploaded, the data is in req.body
-    updateData = req.body;
+  // Find the stamp we need to update first
+  const stampToUpdate = await StampModel.findById(id);
+  if (!stampToUpdate) {
+    throw new ErrorHandler(404, "Stamp not found");
   }
-  
-  // STEP 2: Process the data (which is now consistent)
-  // Convert string fields from the form into correct types
-  if (updateData.price) updateData.price = Number(updateData.price);
-  if (updateData.stock) updateData.stock = Number(updateData.stock);
-  if (updateData.active) updateData.active = updateData.active === 'true';
-  if (updateData.removedImages) {
-    // `removedImages` is sent as a JSON string, so we must parse it
-    try {
-      updateData.removedImages = JSON.parse(updateData.removedImages);
-    } catch (e) {
-      throw new ErrorHandler(400, "Invalid format for removedImages");
+
+  const bb = busboy({ headers: req.headers });
+  const formData = {};
+  const fileUploadPromises = [];
+
+  bb.on("file", (fieldname, file, info) => {
+    // We only care about the new image(s) being uploaded
+    if (fieldname !== "newImages") {
+      return file.resume();
     }
-  }
-
-  // STEP 3: Update the database
-  const existingStamp = await StampModel.findById(id);
-  if (!existingStamp) throw new ErrorHandler(404, "Stamp not found");
-
-  // Delete images that were marked for removal
-  if (updateData.removedImages?.length) {
-    // Here you need to find the full paths/publicIds of the images to delete.
-    // Assuming `removedImages` is an array of publicIds.
-    const imageObjectsToDelete = existingStamp.images.filter(img => 
-      updateData.removedImages.includes(img.publicId)
-    );
-    const pathsToDelete = imageObjectsToDelete.map(img => `/stamps/${img.publicId}`); // Adjust path as needed
     
-    if (pathsToDelete.length > 0) {
-      await deleteFiles(pathsToDelete);
+    const { filename, mimeType } = info;
+    if (!mimeType.startsWith("image/")) {
+      return file.resume();
     }
 
-    // Filter out the removed images from the stamp document
-    existingStamp.images = existingStamp.images.filter(
-      (img) => !updateData.removedImages.includes(img.publicId)
+    const chunks = [];
+    file.on("data", (chunk) => chunks.push(chunk));
+
+    const uploadPromise = new Promise((resolve, reject) => {
+      file.on("end", async () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+          // Determine the filename based on the stamp's name
+          const nameForFile = formData.name || stampToUpdate.name;
+          const newImage = await uploadBufferToSFTP(
+            buffer,
+            filename,
+            "images",
+            nameForFile
+          );
+          resolve(newImage);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+    fileUploadPromises.push(uploadPromise);
+  });
+
+  bb.on("field", (fieldname, val) => {
+    formData[fieldname] = val;
+  });
+
+  await new Promise((resolve, reject) => {
+    bb.on("finish", resolve);
+    bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
+    req.pipe(bb);
+  });
+
+  // Process newly uploaded images
+  const uploadedImages = await Promise.all(fileUploadPromises);
+  if (uploadedImages.length > 0) {
+    // If new images are uploaded, we replace the old ones
+    await deleteFilesFromSFTP(stampToUpdate.images.map(img => img.publicId));
+    stampToUpdate.images = uploadedImages;
+  } else if (formData.removedImages) {
+    // If no new images, check if any existing images were removed
+    const removedImageIds = JSON.parse(formData.removedImages);
+    await deleteFilesFromSFTP(removedImageIds);
+    stampToUpdate.images = stampToUpdate.images.filter(
+      (img) => !removedImageIds.includes(img.publicId)
     );
   }
 
-  // Add the newly uploaded images
-  if (newImages.length) {
-    existingStamp.images.push(...newImages);
-  }
-
-  // Update all other text fields
-  const updatableFields = [ "name", "description", "price", "stock", "active", "beginDate", "category" ];
+  // Update text fields
+  const updatableFields = ["name", "description", "price", "stock", "active", "beginDate", "category"];
   updatableFields.forEach((field) => {
-    if (updateData[field] !== undefined) {
-      existingStamp[field] = updateData[field];
+    if (formData[field] !== undefined) {
+      stampToUpdate[field] = formData[field];
     }
   });
 
-  await existingStamp.save();
+  // Save all changes to the database
+  const updatedStamp = await stampToUpdate.save();
 
   res.status(200).json({
     success: true,
-    message: "Stamp updated successfully",
-    stamp: existingStamp,
+    message: "Stamp updated successfully!",
+    stamp: updatedStamp,
   });
 });
 
