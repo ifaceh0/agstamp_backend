@@ -174,7 +174,6 @@ export const updateStamp = synchFunc(async (req, res) => {
   const uploadedImages = await Promise.all(fileUploadPromises);
   if (uploadedImages.length > 0) {
     // If new images are uploaded, we replace the old ones
-    await deleteFilesFromSFTP(stampToUpdate.images.map(img => img.publicId));
     stampToUpdate.images = uploadedImages;
   } else if (formData.removedImages) {
     // If no new images, check if any existing images were removed
