@@ -189,7 +189,7 @@ export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "ima
 
 
 
-export const updateStamp = synchFunc(async (req, res) => {
+export const uploadPhoto = synchFunc(async (req, res) => {
     // 1. Get the stamp ID from the URL parameters for reliability
     const { id } = req.params;
 

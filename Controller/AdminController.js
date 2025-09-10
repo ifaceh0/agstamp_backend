@@ -1,7 +1,7 @@
 import busboy from "busboy";
 import StampModel from "../Model/stampModel.js";
 import { synchFunc } from "../Utils/SynchFunc.js";
-import { updateStamp } from "./FileUploadController.js"; // 🔹 your uploader
+import { uploadPhoto } from "./FileUploadController.js"; // 🔹 your uploader
 import CarouselModel from "../Model/CarouselModel.js";
 import subscriberModel from "../Model/subcriberModel.js";
 import { mail } from "../Helper/Mail.js";

@@ -10,7 +10,7 @@ export const adminRoute = express.Router();
 adminRoute.post('/admin/addStamp',authorization,Protected,createStamp);
 adminRoute.post('/admin/addcategories',authorization,Protected,addCategory);
 adminRoute.get('/admin/getallstamp',authorization,Protected,allStamps);
-//adminRoute.post('/admin/waveimg',authorization,Protected,uploadPhoto);
+adminRoute.post('/admin/waveimg',authorization,Protected,uploadPhoto);
 adminRoute.get('/admin/getallsubscribers',authorization,Protected,getAllSubscriber);
 adminRoute.post('/admin/sendmailtosubscribers',authorization,Protected,sendMailToSubscribers);
 adminRoute.get('/admin/usersallorders',authorization,Protected,getAllOrders);
