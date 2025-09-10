@@ -189,88 +189,88 @@ export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "ima
 
 
 
-export const uploadPhoto = synchFunc(async (req, res) => {
-    // 1. Get the stamp ID from the URL parameters for reliability
-    const { id } = req.params;
+// export const uploadPhoto = synchFunc(async (req, res) => {
+//     // 1. Get the stamp ID from the URL parameters for reliability
+//     const { id } = req.params;
 
-    // 2. Find the existing stamp BEFORE processing the file
-    // This is crucial to get its name if a new name isn't provided.
-    const stampToUpdate = await StampModel.findById(id);
-    if (!stampToUpdate) {
-        throw new ErrorHandler(404, "Stamp not found");
-    }
+//     // 2. Find the existing stamp BEFORE processing the file
+//     // This is crucial to get its name if a new name isn't provided.
+//     const stampToUpdate = await StampModel.findById(id);
+//     if (!stampToUpdate) {
+//         throw new ErrorHandler(404, "Stamp not found");
+//     }
 
-    const bb = busboy({ headers: req.headers });
-    const formData = {};
-    let fileUploadPromise = null; // We'll store the single file upload promise here
+//     const bb = busboy({ headers: req.headers });
+//     const formData = {};
+//     let fileUploadPromise = null; // We'll store the single file upload promise here
 
-    bb.on("file", (fieldname, file, info) => {
-        const { filename, mimeType } = info;
-        if (!mimeType.startsWith("image/")) {
-            return file.resume(); // Skip non-image files
-        }
+//     bb.on("file", (fieldname, file, info) => {
+//         const { filename, mimeType } = info;
+//         if (!mimeType.startsWith("image/")) {
+//             return file.resume(); // Skip non-image files
+//         }
 
-        const chunks = [];
-        file.on("data", (chunk) => chunks.push(chunk));
+//         const chunks = [];
+//         file.on("data", (chunk) => chunks.push(chunk));
 
-        // Create a promise that resolves with the uploaded image details
-        fileUploadPromise = new Promise((resolve, reject) => {
-            file.on("end", async () => {
-                try {
-                    const buffer = Buffer.concat(chunks);
+//         // Create a promise that resolves with the uploaded image details
+//         fileUploadPromise = new Promise((resolve, reject) => {
+//             file.on("end", async () => {
+//                 try {
+//                     const buffer = Buffer.concat(chunks);
 
-                    // 3. Determine the correct filename
-                    // Use the new name from the form if provided, otherwise use the existing stamp name.
-                    // This ensures the filename stays in sync if the name is also being updated.
-                    const nameForFile = formData.name || stampToUpdate.name;
+//                     // 3. Determine the correct filename
+//                     // Use the new name from the form if provided, otherwise use the existing stamp name.
+//                     // This ensures the filename stays in sync if the name is also being updated.
+//                     const nameForFile = formData.name || stampToUpdate.name;
 
-                    // 4. Upload the new image, overwriting the old one.
-                    // The 'customName' parameter ensures the filename is 'stamp-name.ext'.
-                    // The sftp.put method automatically handles overwriting, so no delete is needed.
-                    const newImage = await uploadBufferToSFTP(
-                        buffer,
-                        filename,      // Original filename is just for the extension
-                        "images",
-                        nameForFile    // This is the key change!
-                    );
+//                     // 4. Upload the new image, overwriting the old one.
+//                     // The 'customName' parameter ensures the filename is 'stamp-name.ext'.
+//                     // The sftp.put method automatically handles overwriting, so no delete is needed.
+//                     const newImage = await uploadBufferToSFTP(
+//                         buffer,
+//                         filename,      // Original filename is just for the extension
+//                         "images",
+//                         nameForFile    // This is the key change!
+//                     );
                     
-                    resolve(newImage);
-                } catch (err) {
-                    reject(err);
-                }
-            });
-        });
-    });
+//                     resolve(newImage);
+//                 } catch (err) {
+//                     reject(err);
+//                 }
+//             });
+//         });
+//     });
 
-    bb.on("field", (fieldname, val) => {
-        formData[fieldname] = val;
-    });
+//     bb.on("field", (fieldname, val) => {
+//         formData[fieldname] = val;
+//     });
 
-    // Wait for busboy to finish parsing all fields and files
-    await new Promise((resolve, reject) => {
-        bb.on("finish", resolve);
-        bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
-        req.pipe(bb);
-    });
+//     // Wait for busboy to finish parsing all fields and files
+//     await new Promise((resolve, reject) => {
+//         bb.on("finish", resolve);
+//         bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
+//         req.pipe(bb);
+//     });
 
-    // If a new file was uploaded, wait for it to finish and add it to formData
-    if (fileUploadPromise) {
-        const uploadedImage = await fileUploadPromise;
-        formData.images = [uploadedImage]; // Replace the old image array with the new one
-    }
+//     // If a new file was uploaded, wait for it to finish and add it to formData
+//     if (fileUploadPromise) {
+//         const uploadedImage = await fileUploadPromise;
+//         formData.images = [uploadedImage]; // Replace the old image array with the new one
+//     }
 
-    // Update the stamp document in MongoDB
-    const updatedStamp = await StampModel.findByIdAndUpdate(id, formData, {
-        new: true,
-        runValidators: true,
-    });
+//     // Update the stamp document in MongoDB
+//     const updatedStamp = await StampModel.findByIdAndUpdate(id, formData, {
+//         new: true,
+//         runValidators: true,
+//     });
 
-    res.status(200).json({
-        success: true,
-        message: "Stamp updated successfully!",
-        stamp: updatedStamp,
-    });
-});
+//     res.status(200).json({
+//         success: true,
+//         message: "Stamp updated successfully!",
+//         stamp: updatedStamp,
+//     });
+// });
 
 export const createCarousel = synchFunc(async (req, res) => {
   const bb = busboy({ headers: req.headers });
