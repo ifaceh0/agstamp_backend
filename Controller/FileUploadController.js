@@ -50,13 +50,13 @@ export const createStamp = synchFunc(async (req, res) => {
           });
 
           // Upload to /images on your server
-          const remotePath = `/images/${finalFileName}`;
+          const remotePath = `/stamps_images/${finalFileName}`;
           await sftp.put(buffer, remotePath);
           await sftp.end();
 
           resolve({
             publicId: finalFileName,
-            publicUrl: `https://agstamp.com/images/${finalFileName}`,
+            publicUrl: `https://agstamp.com/stamps_images/${finalFileName}`,
           });
         } catch (err) {
           console.error(err);
@@ -126,7 +126,7 @@ export const deleteStamp = synchFunc(async (req, res) => {
       });
 
       for (const img of stamp.images) {
-        const filePath = `/images/${img.publicId}`;
+        const filePath = `/stamps_images/${img.publicId}`;
         try {
           await sftp.delete(filePath);
           console.log(`Deleted: ${filePath}`);
@@ -154,7 +154,7 @@ export const deleteStamp = synchFunc(async (req, res) => {
   });
 });
 
-export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "images", customName = null) => {
+export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "stamps_images", customName = null) => {
   const sftp = new SFTPClient();
   try {
     await sftp.connect({
@@ -313,7 +313,7 @@ export const createCarousel = synchFunc(async (req, res) => {
           const result = await uploadBufferToSFTP(
             buffer,
             filename,
-            "images",
+            "stamps_images",
             name // optional: use carousel name as base for file naming
           );
 
@@ -405,7 +405,7 @@ export const updateCarousel = synchFunc(async (req, res) => {
             const uploaded = await uploadBufferToSFTP(
               buffer,
               filename,
-              "images",
+              "stamps_images",
               formData.name || null
             );
 
@@ -432,7 +432,7 @@ export const updateCarousel = synchFunc(async (req, res) => {
 
   // Delete removed images
   if (formData.removedImages?.length) {
-    await deleteFilesFromSFTP(formData.removedImages, "images");
+    await deleteFilesFromSFTP(formData.removedImages, "stamps_images");
     existingCarousel.images = existingCarousel.images.filter(
       (img) => !formData.removedImages.includes(img.publicId)
     );
@@ -477,7 +477,7 @@ export const deleteCarousel = synchFunc(async (req, res) => {
       });
 
       for (const img of carousel.images) {
-        const filePath = `/images/${img.publicId}`;
+        const filePath = `/stamps_images/${img.publicId}`;
         try {
           await sftp.delete(filePath);
           console.log(`Deleted: ${filePath}`);

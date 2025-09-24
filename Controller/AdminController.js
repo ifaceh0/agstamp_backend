@@ -18,7 +18,7 @@ import SFTPClient from "ssh2-sftp-client";
 import { uploadBufferToSFTP } from "./FileUploadController.js";
 
 // Helper to delete files from SFTP
-async function deleteFilesFromSFTP(publicIds = [], folder = "images") {
+async function deleteFilesFromSFTP(publicIds = [], folder = "stamps_images") {
   if (!publicIds.length) return;
   const sftp = new SFTPClient();
   try {
@@ -75,7 +75,7 @@ const parseMultipartForm = (req) => {
           try {
             const buffer = Buffer.concat(chunks);
             // We use your existing SFTP upload function
-            const uploaded = await uploadBufferToSFTP(buffer, info.filename, "images");
+            const uploaded = await uploadBufferToSFTP(buffer, info.filename, "stamps_images");
             resolveFile(uploaded); // Resolve with the uploaded file info
           } catch (err) {
             rejectFile(err);
@@ -148,7 +148,7 @@ export const updateStamp = synchFunc(async (req, res) => {
           const newImage = await uploadBufferToSFTP(
             buffer,
             filename,
-            "images",
+            "stamps_images",
             nameForFile
           );
           resolve(newImage);
