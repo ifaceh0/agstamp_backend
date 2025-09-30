@@ -2,13 +2,14 @@ import express from 'express';
 import { authorization } from '../Utils/Athorization.js';
 import { createCarousel, createStamp, deleteCarousel, deleteStamp, updateCarousel} from '../Controller/FileUploadController.js';
 import { Protected } from '../Utils/Protected.js';
-import { addCategory, allCarousel, allStamps, dashboardData, editOrder, getAllContactus, getAllOrders, getAllSubscriber, sendMailToSubscribers, singleCarousel, singleStamp, updateStamp } from '../Controller/AdminController.js';
+import { addCategory, allCarousel, allStamps, dashboardData, editOrder, getAllContactus, getAllOrders, getAllSubscriber, sendMailToSubscribers, singleCarousel, singleStamp, updateStamp, getAllCategories } from '../Controller/AdminController.js';
 
 export const adminRoute = express.Router();
 
 
 adminRoute.post('/admin/addStamp',authorization,Protected,createStamp);
 adminRoute.post('/admin/addcategories',authorization,Protected,addCategory);
+adminRoute.get("/admin/getcategories", authorization, Protected, getAllCategories);
 adminRoute.get('/admin/getallstamp',authorization,Protected,allStamps);
 // adminRoute.post('/admin/waveimg',authorization,Protected,uploadPhoto);
 adminRoute.get('/admin/getallsubscribers',authorization,Protected,getAllSubscriber);

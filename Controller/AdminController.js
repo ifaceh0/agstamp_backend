@@ -46,7 +46,7 @@ async function deleteFilesFromSFTP(publicIds = [], folder = "stamps_images") {
 }
 
 export const allStamps = synchFunc(async (_, res) => {
-  const stamps = await StampModel.find().populate();
+  const stamps = await StampModel.find().populate("categories");
   res.status(201).json({ success: true, stamps });
 });
 
@@ -285,3 +285,13 @@ export const addCategory = synchFunc(async (req, res) => {
   const category = await categoryModel.create({ name: req.body.name });
   res.status(201).json(category);
 });
+
+// ✅ Fetch all categories
+export const getAllCategories = async (req, res) => {
+  try {
+    const categories = await categoryModel.find().sort({ createdAt: -1 });
+    res.status(200).json(categories);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+};
