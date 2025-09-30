@@ -46,7 +46,7 @@ async function deleteFilesFromSFTP(publicIds = [], folder = "stamps_images") {
 }
 
 export const allStamps = synchFunc(async (_, res) => {
-  const stamps = await StampModel.find().populate("categories");
+  const stamps = await StampModel.find().populate("categories","name");
   res.status(201).json({ success: true, stamps });
 });
 
