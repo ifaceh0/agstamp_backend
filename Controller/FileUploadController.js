@@ -16,7 +16,7 @@ export const createStamp = synchFunc(async (req, res) => {
     price: 0,
     stock: 0,
     beginDate: '',
-    categories: '',
+    categories: [],
   };
 
   const uploadPromises = [];
@@ -82,6 +82,14 @@ export const createStamp = synchFunc(async (req, res) => {
     req.pipe(bb);
   });
 
+  // ✅ Parse categories here (after fields are collected)
+let categories = [];
+try {
+  categories = JSON.parse(formData.categories);
+} catch (err) {
+  throw new ErrorHandler(400, 'Invalid categories format');
+}
+
   if (!formData.name.trim()) throw new ErrorHandler(400, 'Stamp name is required');
   if (!formData.description.trim()) throw new ErrorHandler(400, 'Stamp description is required');
   if (formData.price < 0) throw new ErrorHandler(400, 'Price must be a positive number');
@@ -98,6 +106,7 @@ export const createStamp = synchFunc(async (req, res) => {
   const newStamp = await StampModel.create({
     ...formData,
     beginDate: beginDateParsed,
+    categories,
     images,
   });
 
