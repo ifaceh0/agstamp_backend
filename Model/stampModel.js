@@ -57,11 +57,11 @@ const StampSchema = new Schema(
     //     "Foreign Issues",
     //   ],
     // },
-    categories: {
+    categories: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category", // 🔑 Now links to Category model
       required: true,
-    },
+    }],
   },
   { timestamps: true }
 );

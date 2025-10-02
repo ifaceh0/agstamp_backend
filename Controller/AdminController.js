@@ -185,12 +185,25 @@ export const updateStamp = synchFunc(async (req, res) => {
   }
 
   // Update text fields
-  const updatableFields = ["name", "description", "price", "stock", "active", "beginDate", "category"];
+   const updatableFields = ["name", "description", "price", "stock", "active", "beginDate"];
   updatableFields.forEach((field) => {
     if (formData[field] !== undefined) {
       stampToUpdate[field] = formData[field];
     }
   });
+
+  // 2. Specifically handle the 'categories' array
+  if (formData.categories) {
+    try {
+      const parsedCategories = JSON.parse(formData.categories);
+      if (!Array.isArray(parsedCategories)) {
+        throw new Error('Categories must be an array.');
+      }
+      stampToUpdate.categories = parsedCategories; // Assign the new array
+    } catch (error) {
+      throw new ErrorHandler(400, 'Categories must be a valid JSON array of IDs');
+    }
+  }
 
   // Save all changes to the database
   const updatedStamp = await stampToUpdate.save();
