@@ -308,3 +308,44 @@ export const getAllCategories = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch categories" });
   }
 };
+
+export const updateCategory = synchFunc(async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body;
+
+  if (!name) {
+    throw new ErrorHandler(400, "Category name is required");
+  }
+
+  const updatedCategory = await categoryModel.findByIdAndUpdate(
+    id,
+    { name },
+    { new: true } // returns updated category
+  );
+
+  if (!updatedCategory) {
+    throw new ErrorHandler(404, "Category not found");
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Category updated successfully",
+    category: updatedCategory,
+  });
+});
+
+export const deleteCategory = synchFunc(async (req, res) => {
+  const { id } = req.params;
+
+  const deletedCategory = await categoryModel.findByIdAndDelete(id);
+
+  if (!deletedCategory) {
+    throw new ErrorHandler(404, "Category not found");
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Category deleted successfully",
+  });
+});
+
