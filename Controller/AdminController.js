@@ -334,18 +334,30 @@ export const updateCategory = synchFunc(async (req, res) => {
   });
 });
 
-export const deleteCategory = synchFunc(async (req, res) => {
-  const { id } = req.params;
+export const deleteCategory = async (req, res, next) => {
+  try {
+    const { id } = req.params;
 
-  const deletedCategory = await categoryModel.findByIdAndDelete(id);
+    // check if any stamp belongs to this category
+    const stampsCount = await StampModel.countDocuments({ categoryId: id });
 
-  if (!deletedCategory) {
-    throw new ErrorHandler(404, "Category not found");
+    if (stampsCount > 0) {
+      return next(new ErrorHandler("Cannot delete category with existing stamps", 400));
+    }
+
+    // if no stamps, then allow delete
+    const deletedCategory = await CategoryModel.findByIdAndDelete(id);
+
+    if (!deletedCategory) {
+      return next(new ErrorHandler("Category not found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Category deleted successfully",
+    });
+  } catch (error) {
+    next(error);
   }
-
-  res.status(200).json({
-    success: true,
-    message: "Category deleted successfully",
-  });
-});
+};
 
