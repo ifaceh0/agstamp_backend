@@ -1,4 +1,5 @@
 import busboy from "busboy";
+import categoryModel from "../Model/CategoryModal.js";
 import StampModel from "../Model/stampModel.js";
 import { synchFunc } from "../Utils/SynchFunc.js";
 //import { uploadPhoto } from "./FileUploadController.js"; // 🔹 your uploader
@@ -13,7 +14,6 @@ import {
   summarizeOrdersByMonth,
 } from "../Helper/Helper.js";
 import ContactUs from "../Model/ContactUs.js";
-import categoryModel from "../Model/CategoryModal.js";
 import SFTPClient from "ssh2-sftp-client";
 import { uploadBufferToSFTP } from "./FileUploadController.js";
 
@@ -334,30 +334,27 @@ export const updateCategory = synchFunc(async (req, res) => {
   });
 });
 
-export const deleteCategory = async (req, res, next) => {
+export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // check if any stamp belongs to this category
-    const stampsCount = await StampModel.countDocuments({ categoryId: id });
+    // check if stamps exist for this category
+    const stampCount = await StampModel.countDocuments({ categoryId: id });
 
-    if (stampsCount > 0) {
-      return next(new ErrorHandler("Cannot delete category with existing stamps", 400));
+    if (stampCount > 0) {
+      return res.status(400).json({
+        message: "Cannot delete category with existing stamps",
+      });
     }
 
-    // if no stamps, then allow delete
-    const deletedCategory = await CategoryModel.findByIdAndDelete(id);
+    // delete category if no stamps
+    await categoryModel.findByIdAndDelete(id);
 
-    if (!deletedCategory) {
-      return next(new ErrorHandler("Category not found", 404));
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Category deleted successfully",
-    });
+    res.status(200).json({ message: "Category deleted successfully" });
   } catch (error) {
-    next(error);
+    console.error("Delete category error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
