@@ -338,8 +338,8 @@ export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // check if stamps exist for this category
-    const stampCount = await StampModel.countDocuments({ categoryId: id });
+    // Check if any stamp is linked to this category
+    const stampCount = await StampModel.countDocuments({ categories: id });
 
     if (stampCount > 0) {
       return res.status(400).json({
@@ -347,7 +347,7 @@ export const deleteCategory = async (req, res) => {
       });
     }
 
-    // delete category if no stamps
+    // Delete category if no stamps are linked
     await categoryModel.findByIdAndDelete(id);
 
     res.status(200).json({ message: "Category deleted successfully" });
