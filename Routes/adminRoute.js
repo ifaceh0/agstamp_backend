@@ -1,8 +1,18 @@
 import express from 'express';
 import { authorization } from '../Utils/Athorization.js';
-import { createCarousel, createStamp, deleteCarousel, deleteStamp, updateCarousel} from '../Controller/FileUploadController.js';
+import { createCarousel, createStamp,
+    deleteCarousel, deleteStamp, updateCarousel
+    } from '../Controller/FileUploadController.js';
 import { Protected } from '../Utils/Protected.js';
-import { addCategory, allCarousel, allStamps, dashboardData, editOrder, getAllContactus, getAllOrders, getAllSubscriber, sendMailToSubscribers, singleCarousel, singleStamp, updateStamp, getAllCategories, updateCategory, deleteCategory } from '../Controller/AdminController.js';
+import { 
+    addCategory, allCarousel, allStamps, 
+    dashboardData, editOrder, getAllContactus,
+    getAllOrders, getAllSubscriber, sendMailToSubscribers,
+    singleCarousel, singleStamp, updateStamp,
+    getAllCategories, updateCategory, deleteCategory
+    } from '../Controller/AdminController.js';
+import { getShippingRates, updateShippingRate } from '../Controller/AdminController.js';
+
 
 export const adminRoute = express.Router();
 
@@ -36,3 +46,9 @@ adminRoute.put('/admin/updatecarousel/:id',authorization,Protected,updateCarouse
 adminRoute.delete('/admin/deleteStamp/:id',authorization,Protected,deleteStamp);
 adminRoute.get('/admin/getstamp/:id',singleStamp);
 adminRoute.put('/admin/updateStamp/:id',authorization,Protected,updateStamp);
+
+// Get all shipping rates (admin view)
+adminRoute.get('/admin/shipping-rates', authorization, Protected, getShippingRates);
+
+// Update or create a shipping rate (admin update)
+adminRoute.put('/admin/shipping-rates', authorization, Protected, updateShippingRate);

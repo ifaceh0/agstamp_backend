@@ -1,8 +1,16 @@
 import express from 'express';
 
-import { contactUSController, getAllUserOrder, getCategories, getUserInfo, getWaveImg, subscribeMailService, userLogin, userLogout, userProduct, userRegister } from '../Controller/userController.js';
+import { contactUSController, getAllUserOrder,
+    getCategories, getUserInfo,
+    getWaveImg, subscribeMailService,
+    userLogin, userLogout, userProduct,
+    userRegister, getCustomerShippingPrices
+    } from '../Controller/userController.js';
 import { authorization } from '../Utils/Athorization.js';
-import { addToCart, getCart, removeAllCartItem, removeCartItem, updateCartItemQuantity } from '../Controller/CartController.js';
+import { addToCart, getCart,
+     removeAllCartItem, removeCartItem, 
+     updateCartItemQuantity
+     } from '../Controller/CartController.js';
 
 export const customersRoute = express.Router();
 
@@ -26,6 +34,5 @@ customersRoute.get('/user/orders', authorization, getAllUserOrder);
 customersRoute.get('/user/removeitem/:stampId',authorization, removeCartItem);
 customersRoute.get('/user/removeAllitem/:id',authorization, removeAllCartItem);
 customersRoute.post('/user/subscribeMailService',authorization, subscribeMailService);
-
-
-
+// Fetch shipping prices for checkout
+customersRoute.get("/user/shipping-prices", getCustomerShippingPrices);

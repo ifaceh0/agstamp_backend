@@ -16,6 +16,7 @@ import {
 import ContactUs from "../Model/ContactUs.js";
 import SFTPClient from "ssh2-sftp-client";
 import { uploadBufferToSFTP } from "./FileUploadController.js";
+import ShippingRate from "../Model/ShippingRate.js";
 
 // Helper to delete files from SFTP
 async function deleteFilesFromSFTP(publicIds = [], folder = "stamps_images") {
@@ -356,5 +357,37 @@ export const deleteCategory = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+// ✅ Get all shipping rates
+export const getShippingRates = async (req, res) => {
+  try {
+    const rates = await ShippingRate.find();
+    res.status(200).json({ success: true, rates });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
+// ✅ Update or create a shipping rate
+export const updateShippingRate = async (req, res) => {
+  try {
+    const { type, price } = req.body;
+    if (!type || price == null) {
+      return res.status(400).json({ success: false, message: "Type and price required" });
+    }
+
+    const updated = await ShippingRate.findOneAndUpdate(
+      { type },
+      { price },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Shipping rate updated successfully",
+      rate: updated,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 

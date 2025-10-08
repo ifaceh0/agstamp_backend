@@ -10,6 +10,7 @@ import subscriberModel from '../Model/subcriberModel.js';
 import orderModel from '../Model/orderModel.js';
 import ContactUs from '../Model/ContactUs.js';
 import categoryModel from '../Model/CategoryModal.js';
+import ShippingRate from '../Model/ShippingRate.js';
 
 export const userRegister = synchFunc(async (req, res) => {
     const { firstname, lastname, username, email, password } = req.body;
@@ -156,3 +157,20 @@ export const getCategories = synchFunc(async (req, res) => {
   const categories = await categoryModel.find();
   res.status(201).json(categories);
 });
+
+export const getCustomerShippingPrices = async (req, res) => {
+  try {
+    const rates = await ShippingRate.find();
+    const domestic = rates.find(r => r.type === "domestic");
+    const international = rates.find(r => r.type === "international");
+
+    res.status(200).json({
+      success: true,
+      usPrice: domestic ? domestic.price : 5, // fallback default
+      internationalPrice: international ? international.price : 25,
+    });
+  } catch (error) {
+    console.error("Error fetching customer shipping prices:", error);
+    res.status(500).json({ success: false, message: "Server error while fetching shipping prices" });
+  }
+};
