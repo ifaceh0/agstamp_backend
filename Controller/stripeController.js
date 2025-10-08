@@ -861,9 +861,10 @@ import { UserModel } from '../Model/userModel.js';
 import { ErrorHandler } from "../Utils/ErrorHandler.js";
 
 // 🧾 Create a checkout session
+// 🧾 Create a checkout session
 export const createCheckoutSession = async (req, res) => {
   try {
-    const { items, customerEmail, customerName, shippingType, metadata = {} } = req.body;
+    const { items, customerEmail, customerName, shippingType, metadata = {}, selectedCountry } = req.body;
 
     // Validate items
     if (!items || !items.length) {
@@ -904,17 +905,20 @@ export const createCheckoutSession = async (req, res) => {
     // 🧮 Calculate total order amount before shipping
     const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    // 🚚 Determine dynamic shipping cost (no free shipping)
+    // 🚚 Determine dynamic shipping cost (example logic)
     let shippingCost = 0;
     let shippingLabel = "";
 
-    if (totalAmount < 50) {
-      shippingCost = 1000; // $10
-      shippingLabel = "Express Shipping";
+    if (selectedCountry === "US") {
+      shippingCost = 500; // $5 for domestic
+      shippingLabel = "Domestic Shipping";
     } else {
-      shippingCost = 500; // $5
-      shippingLabel = "Standard Shipping";
+      shippingCost = 1500; // $15 for international
+      shippingLabel = "International Shipping";
     }
+
+    // 📍 Ensure selectedCountry is set
+    const countryCode = selectedCountry || "US"; // fallback to US if not provided
 
     // 💳 Create the Stripe session
     const sessionData = {
@@ -924,9 +928,13 @@ export const createCheckoutSession = async (req, res) => {
       customer_email: customerEmail,
       success_url: `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/checkout/cancel`,
+
+      // ✅ Lock country here
       shipping_address_collection: {
-        allowed_countries: ['IN', 'US', 'CA', 'GB', 'AU', 'SG', 'AE', 'DE', 'FR', 'IT', 'ES']
+        allowed_countries: [countryCode],
       },
+
+      // ✅ Dynamic shipping rate
       shipping_options: [
         {
           shipping_rate_data: {
@@ -943,10 +951,13 @@ export const createCheckoutSession = async (req, res) => {
           },
         },
       ],
+
+      // ✅ Store country in metadata too
       metadata: {
         ...metadata,
         customerName,
         customerId: String(req.user._id),
+        selectedCountry: countryCode,
         products: JSON.stringify(items),
       },
     };
