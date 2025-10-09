@@ -929,9 +929,15 @@ export const createCheckoutSession = async (req, res) => {
       success_url: `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/checkout/cancel`,
 
-      // ✅ Lock country here
+      // ✅ Lock country (only show the selected country)
       shipping_address_collection: {
         allowed_countries: [countryCode],
+      },
+
+      // ✅ Disable any address or shipping updates in Stripe checkout
+      customer_update: {
+        address: "never",
+        shipping: "never",
       },
 
       // ✅ Dynamic shipping rate
@@ -940,27 +946,28 @@ export const createCheckoutSession = async (req, res) => {
           shipping_rate_data: {
             type: "fixed_amount",
             fixed_amount: {
-              amount: shippingCost,
-              currency: "usd",
-            },
-            display_name: shippingLabel,
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 1 },
-              maximum: { unit: "business_day", value: 3 },
-            },
+            amount: shippingCost,
+            currency: "usd",
+          },
+          display_name: shippingLabel,
+          delivery_estimate: {
+            minimum: { unit: "business_day", value: 1 },
+            maximum: { unit: "business_day", value: 3 },
           },
         },
-      ],
-
-      // ✅ Store country in metadata too
-      metadata: {
-        ...metadata,
-        customerName,
-        customerId: String(req.user._id),
-        selectedCountry: countryCode,
-        products: JSON.stringify(items),
       },
-    };
+    ],
+
+    // ✅ Store country in metadata
+    metadata: {
+      ...metadata,
+      customerName,
+      customerId: String(req.user._id),
+      selectedCountry: countryCode,
+      products: JSON.stringify(items),
+    },
+  };
+
 
     if (req.user && req.user.id) {
       sessionData.client_reference_id = req.user.id;
