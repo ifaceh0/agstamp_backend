@@ -935,11 +935,11 @@ export const createCheckoutSession = async (req, res) => {
     allowed_countries: [countryCode],
   },
 
-  // ✅ Prevent user updates in Stripe
-  customer_update: {
-    address: "never",
-    shipping: "never",
-  },
+  // // ✅ Prevent user updates in Stripe
+  // customer_update: {
+  //   address: "never",
+  //   shipping: "never",
+  // },
 
   // ✅ Dynamic shipping cost
   shipping_options: [
