@@ -12,6 +12,7 @@ import {
     getAllCategories, updateCategory, deleteCategory
     } from '../Controller/AdminController.js';
 import { getShippingRates, updateShippingRate } from '../Controller/AdminController.js';
+import { addCountry, updateCountry, deleteCountry, getCountries } from '../Controller/AdminController.js';
 
 
 export const adminRoute = express.Router();
@@ -52,3 +53,11 @@ adminRoute.get('/admin/shipping-rates', authorization, Protected, getShippingRat
 
 // Update or create a shipping rate (admin update)
 adminRoute.put('/admin/shipping-rates', authorization, Protected, updateShippingRate);
+
+// Admin protected
+adminRoute.post('/admin/countries', authorization, Protected, addCountry);
+adminRoute.put('/admin/countries/:id', authorization, Protected, updateCountry);
+adminRoute.delete('/admin/countries/:id', authorization, Protected, deleteCountry);
+
+// Public or authenticated (for the cart)
+adminRoute.get('/countries', getCountries); // no admin middleware so frontend can call it

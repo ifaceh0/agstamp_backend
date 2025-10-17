@@ -17,6 +17,7 @@ import ContactUs from "../Model/ContactUs.js";
 import SFTPClient from "ssh2-sftp-client";
 import { uploadBufferToSFTP } from "./FileUploadController.js";
 import ShippingRate from "../Model/ShippingRate.js";
+import Country from "../Model/CountryModel.js";
 
 // Helper to delete files from SFTP
 async function deleteFilesFromSFTP(publicIds = [], folder = "stamps_images") {
@@ -391,3 +392,52 @@ export const updateShippingRate = async (req, res) => {
   }
 };
 
+// Create a country
+export const addCountry = async (req, res, next) => {
+  try {
+    const { name, code, dialCode, active } = req.body;
+    if (!name || !code) throw new ErrorHandler(400, "Name and code are required");
+    const exists = await Country.findOne({ code: code.toUpperCase() });
+    if (exists) throw new ErrorHandler(400, "Country with this code already exists");
+    const country = await Country.create({ name, code: code.toUpperCase(), dialCode, active });
+    res.status(201).json({ success: true, country });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Get all countries (public or admin; for cart you can expose a public endpoint)
+export const getCountries = async (req, res, next) => {
+  try {
+    // Optionally only return active ones for public endpoint
+    const countries = await Country.find().sort({ name: 1 });
+    res.status(200).json({ success: true, countries });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Update country
+export const updateCountry = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const payload = req.body;
+    if (payload.code) payload.code = payload.code.toUpperCase();
+    const updated = await Country.findByIdAndUpdate(id, payload, { new: true });
+    if (!updated) throw new ErrorHandler(404, "Country not found");
+    res.status(200).json({ success: true, country: updated });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Delete country
+export const deleteCountry = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await Country.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: "Deleted" });
+  } catch (err) {
+    next(err);
+  }
+};
