@@ -60,4 +60,4 @@ adminRoute.put('/admin/countries/:id', authorization, Protected, updateCountry);
 adminRoute.delete('/admin/countries/:id', authorization, Protected, deleteCountry);
 
 // Public or authenticated (for the cart)
-adminRoute.get('/countries', getCountries); // no admin middleware so frontend can call it
+adminRoute.get('/admin/countries', getCountries); // no admin middleware so frontend can call it
