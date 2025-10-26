@@ -864,7 +864,7 @@ import { ErrorHandler } from "../Utils/ErrorHandler.js";
 // 🧾 Create a checkout session
 export const createCheckoutSession = async (req, res) => {
   try {
-    const { items, customerEmail, customerName, shippingType, metadata = {}, selectedCountry } = req.body;
+    const { items, customerEmail, customerName, shippingType, metadata = {}, selectedCountry, shippingRate } = req.body;
 
     // Validate items
     if (!items || !items.length) {
@@ -906,16 +906,19 @@ export const createCheckoutSession = async (req, res) => {
     const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     // 🚚 Determine dynamic shipping cost (example logic)
-    let shippingCost = 0;
-    let shippingLabel = "";
+    // let shippingCost = 0;
+    // let shippingLabel = "";
 
-    if (selectedCountry === "US") {
-      shippingCost = 500; // $5 for domestic
-      shippingLabel = "Domestic Shipping";
-    } else {
-      shippingCost = 1500; // $15 for international
-      shippingLabel = "International Shipping";
-    }
+    // if (selectedCountry === "US") {
+    //   shippingCost = 500; // $5 for domestic
+    //   shippingLabel = "Domestic Shipping";
+    // } else {
+    //   shippingCost = 1500; // $15 for international
+    //   shippingLabel = "International Shipping";
+    // }
+
+    const shippingCost = Math.round(shippingRate * 100); // Convert to cents
+    const shippingLabel = selectedCountry === "US" ? "US Shipping" : "International Shipping";
 
     // 📍 Ensure selectedCountry is set
     const countryCode = selectedCountry || "US"; // fallback to US if not provided
