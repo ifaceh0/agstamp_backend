@@ -1,3 +1,519 @@
+// import busboy from 'busboy';
+// import SFTPClient from 'ssh2-sftp-client';
+// import StampModel from '../Model/stampModel.js';
+// import { synchFunc } from '../Utils/SynchFunc.js';
+// import { ErrorHandler } from '../Utils/ErrorHandler.js';
+// import PhotoModel from '../Model/WaveModel.js';
+// import CarouselModel from '../Model/CarouselModel.js';
+// import path from 'path';
+
+// export const createStamp = synchFunc(async (req, res) => {
+//   const bb = busboy({ headers: req.headers });
+
+//   const formData = {
+//     name: '',
+//     description: '',
+//     price: 0,
+//     stock: 0,
+//     beginDate: '',
+//     categories: [],
+//   };
+
+//   const uploadPromises = [];
+
+//   bb.on('file', (fieldname, file, info) => {
+//     const { filename, mimeType } = info;
+//     if (!mimeType.startsWith('image/')) {
+//       throw new ErrorHandler(400, 'Only image files are allowed!');
+//     }
+
+//     const chunks = [];
+//     file.on('data', (chunk) => chunks.push(chunk));
+
+//     const uploadPromise = new Promise((resolve, reject) => {
+//       file.on('end', async () => {
+//         try {
+//           const buffer = Buffer.concat(chunks);
+//           // 🔹 Generate new filename from Stamp Name
+//           const ext = path.extname(filename); // keep original extension
+//           const safeName = formData.name.replace(/\s+/g, "-").toLowerCase();
+//           const finalFileName = `${safeName}${ext}`;
+
+
+//           // SFTP connection
+//           const sftp = new SFTPClient();
+//           await sftp.connect({
+//             host: process.env.SFTP_HOST, // your IONOS SFTP host
+//             port: process.env.SFTP_PORT, // your IONOS SFTP port
+//             username: process.env.SFTP_USER,                 // your IONOS user
+//             password: process.env.SFTP_PASS,        // your IONOS password
+//           });
+
+//           // Upload to /images on your server
+//           const remotePath = `/stamps_images/${finalFileName}`;
+//           await sftp.put(buffer, remotePath);
+//           await sftp.end();
+
+//           resolve({
+//             publicId: finalFileName,
+//             publicUrl: `https://agstamp.com/stamps_images/${finalFileName}`,
+//           });
+//         } catch (err) {
+//           console.error(err);
+//           reject(new ErrorHandler(500, 'SFTP upload failed'));
+//         }
+//       });
+//     });
+
+//     uploadPromises.push(uploadPromise);
+//   });
+
+//   bb.on('field', (fieldname, val) => {
+//     if (['price', 'stock'].includes(fieldname)) {
+//       formData[fieldname] = Number(val);
+//     } else {
+//       formData[fieldname] = val;
+//     }
+//   });
+
+//   await new Promise((resolve, reject) => {
+//     bb.on('finish', resolve);
+//     bb.on('error', (err) => reject(new ErrorHandler(500, err.message)));
+//     req.pipe(bb);
+//   });
+
+//   // ✅ Parse categories here (after fields are collected)
+// let categories = [];
+// try {
+//   categories = JSON.parse(formData.categories);
+// } catch (err) {
+//   throw new ErrorHandler(400, 'Invalid categories format');
+// }
+
+//   if (!formData.name.trim()) throw new ErrorHandler(400, 'Stamp name is required');
+//   if (!formData.description.trim()) throw new ErrorHandler(400, 'Stamp description is required');
+//   if (formData.price < 0) throw new ErrorHandler(400, 'Price must be a positive number');
+//   if (formData.stock < 0) throw new ErrorHandler(400, 'Stock cannot be negative');
+//   if (!formData.beginDate) throw new ErrorHandler(400, 'Begin date is required');
+
+//   const beginDateParsed = new Date(formData.beginDate);
+//   if (isNaN(beginDateParsed.getTime())) throw new ErrorHandler(400, 'Invalid begin date format');
+
+//   // Upload all images via SFTP
+//   const images = await Promise.all(uploadPromises);
+//   if (!images.length) throw new ErrorHandler(400, 'At least one image is required');
+
+//   const newStamp = await StampModel.create({
+//     ...formData,
+//     beginDate: beginDateParsed,
+//     categories,
+//     images,
+//   });
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'Stamp created successfully',
+//     stamp: newStamp,
+//   });
+// });
+
+// export const deleteStamp = synchFunc(async (req, res) => {
+//   const { id } = req.params;
+
+//   const stamp = await StampModel.findById(id);
+//   if (!stamp) throw new ErrorHandler(404, "Stamp not found");
+
+//   // If there are images, delete them from SFTP server
+//   if (stamp.images.length) {
+//     try {
+//       const sftp = new SFTPClient();
+//       await sftp.connect({
+//         host: process.env.SFTP_HOST, // IONOS SFTP host
+//         port: process.env.SFTP_PORT,
+//         username: process.env.SFTP_USER,                // IONOS user
+//         password: process.env.SFTP_PASS,             // IONOS password
+//       });
+
+//       for (const img of stamp.images) {
+//         const filePath = `/stamps_images/${img.publicId}`;
+//         try {
+//           await sftp.delete(filePath);
+//           console.log(`Deleted: ${filePath}`);
+//         } catch (err) {
+//           console.warn(`Failed to delete ${filePath}:`, err.message);
+//         }
+//       }
+
+//       await sftp.end();
+//     } catch (err) {
+//       console.error("SFTP delete error:", err);
+//       throw new ErrorHandler(500, "Failed to delete images from SFTP server");
+//     }
+//   }
+
+//   // Delete stamp from database
+//   await StampModel.findByIdAndDelete(id);
+
+//   const stamps = await StampModel.find();
+
+//   res.status(200).json({
+//     success: true,
+//     stamps,
+//     message: "Stamp and associated images deleted successfully",
+//   });
+// });
+
+// export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "stamps_images", customName = null) => {
+//   const sftp = new SFTPClient();
+//   try {
+//     await sftp.connect({
+//       host: process.env.SFTP_HOST,
+//       port: process.env.SFTP_PORT,
+//       username: process.env.SFTP_USER,
+//       password: process.env.SFTP_PASS,
+//     });
+
+//     const ext = path.extname(originalFilename);
+//     const safeName = customName
+//       ? customName.replace(/\s+/g, "-").toLowerCase()
+//       : path.basename(originalFilename, ext).toLowerCase();
+//     const finalFileName = `${safeName}${ext}`;
+
+//     const remoteDir = `/${folder}`;
+//     const remotePath = path.posix.join(remoteDir, finalFileName);
+
+//     // ✅ Upload to SFTP
+//     await sftp.put(buffer, remotePath);
+//     await sftp.end();
+
+//     return {
+//       publicId: finalFileName,
+//       url: `https://agstamp.com${remotePath}`,
+//       publicUrl: `https://agstamp.com${remotePath}`,
+//     };
+//   } catch (err) {
+//     throw new ErrorHandler(500, "SFTP upload failed: " + err.message);
+//   }
+// };
+
+
+
+// // export const uploadPhoto = synchFunc(async (req, res) => {
+// //     // 1. Get the stamp ID from the URL parameters for reliability
+// //     const { id } = req.params;
+
+// //     // 2. Find the existing stamp BEFORE processing the file
+// //     // This is crucial to get its name if a new name isn't provided.
+// //     const stampToUpdate = await StampModel.findById(id);
+// //     if (!stampToUpdate) {
+// //         throw new ErrorHandler(404, "Stamp not found");
+// //     }
+
+// //     const bb = busboy({ headers: req.headers });
+// //     const formData = {};
+// //     let fileUploadPromise = null; // We'll store the single file upload promise here
+
+// //     bb.on("file", (fieldname, file, info) => {
+// //         const { filename, mimeType } = info;
+// //         if (!mimeType.startsWith("image/")) {
+// //             return file.resume(); // Skip non-image files
+// //         }
+
+// //         const chunks = [];
+// //         file.on("data", (chunk) => chunks.push(chunk));
+
+// //         // Create a promise that resolves with the uploaded image details
+// //         fileUploadPromise = new Promise((resolve, reject) => {
+// //             file.on("end", async () => {
+// //                 try {
+// //                     const buffer = Buffer.concat(chunks);
+
+// //                     // 3. Determine the correct filename
+// //                     // Use the new name from the form if provided, otherwise use the existing stamp name.
+// //                     // This ensures the filename stays in sync if the name is also being updated.
+// //                     const nameForFile = formData.name || stampToUpdate.name;
+
+// //                     // 4. Upload the new image, overwriting the old one.
+// //                     // The 'customName' parameter ensures the filename is 'stamp-name.ext'.
+// //                     // The sftp.put method automatically handles overwriting, so no delete is needed.
+// //                     const newImage = await uploadBufferToSFTP(
+// //                         buffer,
+// //                         filename,      // Original filename is just for the extension
+// //                         "images",
+// //                         nameForFile    // This is the key change!
+// //                     );
+                    
+// //                     resolve(newImage);
+// //                 } catch (err) {
+// //                     reject(err);
+// //                 }
+// //             });
+// //         });
+// //     });
+
+// //     bb.on("field", (fieldname, val) => {
+// //         formData[fieldname] = val;
+// //     });
+
+// //     // Wait for busboy to finish parsing all fields and files
+// //     await new Promise((resolve, reject) => {
+// //         bb.on("finish", resolve);
+// //         bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
+// //         req.pipe(bb);
+// //     });
+
+// //     // If a new file was uploaded, wait for it to finish and add it to formData
+// //     if (fileUploadPromise) {
+// //         const uploadedImage = await fileUploadPromise;
+// //         formData.images = [uploadedImage]; // Replace the old image array with the new one
+// //     }
+
+// //     // Update the stamp document in MongoDB
+// //     const updatedStamp = await StampModel.findByIdAndUpdate(id, formData, {
+// //         new: true,
+// //         runValidators: true,
+// //     });
+
+// //     res.status(200).json({
+// //         success: true,
+// //         message: "Stamp updated successfully!",
+// //         stamp: updatedStamp,
+// //     });
+// // });
+
+// export const createCarousel = synchFunc(async (req, res) => {
+//   const bb = busboy({ headers: req.headers });
+
+//   let name = "";
+//   const uploadPromises = [];
+
+//   // 📝 Get carousel name
+//   bb.on("field", (fieldname, val) => {
+//     if (fieldname === "name") {
+//       name = val.trim();
+//     }
+//   });
+
+//   // 📂 Handle file uploads
+//   bb.on("file", (fieldname, file, info) => {
+//     const { filename, mimeType } = info;
+
+//     if (!mimeType.startsWith("image/")) {
+//       file.resume();
+//       uploadPromises.push(
+//         Promise.reject(new ErrorHandler(400, "Only image files are allowed!"))
+//       );
+//       return;
+//     }
+
+//     const chunks = [];
+//     file.on("data", (chunk) => chunks.push(chunk));
+
+//     const uploadPromise = new Promise((resolve, reject) => {
+//       file.on("end", async () => {
+//         try {
+//           if (chunks.length === 0) {
+//             return reject(new ErrorHandler(400, "Empty file received"));
+//           }
+
+//           const buffer = Buffer.concat(chunks);
+
+//           // ✅ Use the helper so naming matches uploadPhoto
+//           const result = await uploadBufferToSFTP(
+//             buffer,
+//             filename,
+//             "stamps_images",
+//             name // optional: use carousel name as base for file naming
+//           );
+
+//           resolve(result);
+//         } catch (err) {
+//           console.error("SFTP upload error:", err);
+//           reject(new ErrorHandler(500, "Failed to upload image to SFTP"));
+//         }
+//       });
+
+//       file.on("error", reject);
+//     });
+
+//     uploadPromises.push(uploadPromise);
+//   });
+
+//   // Wait for form parsing
+//   await new Promise((resolve, reject) => {
+//     bb.on("finish", resolve);
+//     bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
+//     req.pipe(bb);
+//   });
+
+//   if (!name) {
+//     throw new ErrorHandler(400, "Carousel name is required");
+//   }
+
+//   // Upload all images
+//   const images = await Promise.all(uploadPromises);
+//   if (!images.length) {
+//     throw new ErrorHandler(400, "At least one image is required");
+//   }
+
+//   // Save carousel to DB
+//   const newCarousel = await CarouselModel.create({
+//     name,
+//     images, // [{ publicId, url }]
+//   });
+
+//   res.status(201).json({
+//     success: true,
+//     message: "Carousel image(s) added successfully",
+//     carousel: newCarousel,
+//   });
+// });
+
+
+// // Update Carousel
+// export const updateCarousel = synchFunc(async (req, res) => {
+//   const bb = busboy({ headers: req.headers });
+//   const { id } = req.params;
+
+//   const formData = {};
+//   const uploadPromises = [];
+
+//   // Handle fields
+//   bb.on("field", (fieldname, val) => {
+//     if (fieldname === "removedImages") {
+//       try {
+//         formData.removedImages = JSON.parse(val);
+//       } catch {
+//         formData.removedImages = [];
+//       }
+//     } else {
+//       formData[fieldname] = val;
+//     }
+//   });
+
+//   // Handle file uploads using helper
+//   bb.on("file", (fieldname, file, info) => {
+//     const { filename, mimeType } = info;
+
+//     if (!mimeType.startsWith("image/")) {
+//       file.resume();
+//       uploadPromises.push(Promise.reject(new ErrorHandler(400, "Only image files are allowed!")));
+//       return;
+//     }
+
+//     const chunks = [];
+//     file.on("data", (chunk) => chunks.push(chunk));
+
+//     uploadPromises.push(
+//       new Promise((resolve, reject) => {
+//         file.on("end", async () => {
+//           try {
+//             if (!chunks.length) return reject(new ErrorHandler(400, "Empty file received"));
+
+//             const buffer = Buffer.concat(chunks);
+//             const uploaded = await uploadBufferToSFTP(
+//               buffer,
+//               filename,
+//               "stamps_images",
+//               formData.name || null
+//             );
+
+//             resolve({ publicId: uploaded.publicId, url: uploaded.url });
+//           } catch (err) {
+//             reject(new ErrorHandler(500, "Failed to upload image to SFTP"));
+//           }
+//         });
+//         file.on("error", reject);
+//       })
+//     );
+//   });
+
+//   // Wait for busboy finish
+//   await new Promise((resolve, reject) => {
+//     bb.on("finish", resolve);
+//     bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
+//     req.pipe(bb);
+//   });
+
+//   // Find existing carousel
+//   const existingCarousel = await CarouselModel.findById(id);
+//   if (!existingCarousel) throw new ErrorHandler(404, "Carousel not found");
+
+//   // Delete removed images
+//   if (formData.removedImages?.length) {
+//     await deleteFilesFromSFTP(formData.removedImages, "stamps_images");
+//     existingCarousel.images = existingCarousel.images.filter(
+//       (img) => !formData.removedImages.includes(img.publicId)
+//     );
+//   }
+
+//   // Add newly uploaded images
+//   const uploadedImages = await Promise.all(uploadPromises);
+//   if (uploadedImages.length) {
+//     existingCarousel.images.push(...uploadedImages);
+//   }
+
+//   // Update name if provided
+//   if (formData.name !== undefined) {
+//     existingCarousel.name = formData.name.trim();
+//   }
+
+//   await existingCarousel.save();
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Carousel updated successfully",
+//     carousel: existingCarousel,
+//   });
+// });
+
+
+// export const deleteCarousel = synchFunc(async (req, res) => {
+//   const { id } = req.params;
+
+//   const carousel = await CarouselModel.findById(id);
+//   if (!carousel) throw new ErrorHandler(404, "Carousel not found");
+
+//   // 🗑 Delete associated images from SFTP
+//   if (carousel.images.length) {
+//     try {
+//       const sftp = new SFTPClient();
+//       await sftp.connect({
+//         host: process.env.SFTP_HOST, // IONOS SFTP host
+//         port: process.env.SFTP_PORT,
+//         username: process.env.SFTP_USER,                // IONOS user
+//         password: process.env.SFTP_PASS,             // IONOS password
+//       });
+
+//       for (const img of carousel.images) {
+//         const filePath = `/stamps_images/${img.publicId}`;
+//         try {
+//           await sftp.delete(filePath);
+//           console.log(`Deleted: ${filePath}`);
+//         } catch (err) {
+//           console.warn(`Failed to delete ${filePath}:`, err.message);
+//         }
+//       }
+
+//       await sftp.end();
+//     } catch (err) {
+//       console.error("SFTP delete error:", err);
+//       throw new ErrorHandler(500, "Failed to delete images from SFTP server");
+//     }
+//   }
+
+//   // 🗂 Delete carousel document
+//   await CarouselModel.findByIdAndDelete(id);
+
+//   const carousels = await CarouselModel.find();
+
+//   res.status(200).json({
+//     success: true,
+//     carousels,
+//     message: "Carousel and associated images deleted successfully",
+//   });
+// });
+
 import busboy from 'busboy';
 import SFTPClient from 'ssh2-sftp-client';
 import StampModel from '../Model/stampModel.js';
@@ -20,6 +536,7 @@ export const createStamp = synchFunc(async (req, res) => {
   };
 
   const uploadPromises = [];
+  let imageIndex = 0; // Track image count
 
   bb.on('file', (fieldname, file, info) => {
     const { filename, mimeType } = info;
@@ -29,27 +546,27 @@ export const createStamp = synchFunc(async (req, res) => {
 
     const chunks = [];
     file.on('data', (chunk) => chunks.push(chunk));
+    
+    const currentIndex = imageIndex++; // Capture current index
 
     const uploadPromise = new Promise((resolve, reject) => {
       file.on('end', async () => {
         try {
           const buffer = Buffer.concat(chunks);
-          // 🔹 Generate new filename from Stamp Name
-          const ext = path.extname(filename); // keep original extension
+          // 🔹 Generate unique filename from Stamp Name + index
+          const ext = path.extname(filename);
           const safeName = formData.name.replace(/\s+/g, "-").toLowerCase();
-          const finalFileName = `${safeName}${ext}`;
-
+          const finalFileName = `${safeName}-${currentIndex}${ext}`;
 
           // SFTP connection
           const sftp = new SFTPClient();
           await sftp.connect({
-            host: process.env.SFTP_HOST, // your IONOS SFTP host
-            port: process.env.SFTP_PORT, // your IONOS SFTP port
-            username: process.env.SFTP_USER,                 // your IONOS user
-            password: process.env.SFTP_PASS,        // your IONOS password
+            host: process.env.SFTP_HOST,
+            port: process.env.SFTP_PORT,
+            username: process.env.SFTP_USER,
+            password: process.env.SFTP_PASS,
           });
 
-          // Upload to /images on your server
           const remotePath = `/stamps_images/${finalFileName}`;
           await sftp.put(buffer, remotePath);
           await sftp.end();
@@ -83,12 +600,12 @@ export const createStamp = synchFunc(async (req, res) => {
   });
 
   // ✅ Parse categories here (after fields are collected)
-let categories = [];
-try {
-  categories = JSON.parse(formData.categories);
-} catch (err) {
-  throw new ErrorHandler(400, 'Invalid categories format');
-}
+  let categories = [];
+  try {
+    categories = JSON.parse(formData.categories);
+  } catch (err) {
+    throw new ErrorHandler(400, 'Invalid categories format');
+  }
 
   if (!formData.name.trim()) throw new ErrorHandler(400, 'Stamp name is required');
   if (!formData.description.trim()) throw new ErrorHandler(400, 'Stamp description is required');
@@ -128,10 +645,10 @@ export const deleteStamp = synchFunc(async (req, res) => {
     try {
       const sftp = new SFTPClient();
       await sftp.connect({
-        host: process.env.SFTP_HOST, // IONOS SFTP host
+        host: process.env.SFTP_HOST,
         port: process.env.SFTP_PORT,
-        username: process.env.SFTP_USER,                // IONOS user
-        password: process.env.SFTP_PASS,             // IONOS password
+        username: process.env.SFTP_USER,
+        password: process.env.SFTP_PASS,
       });
 
       for (const img of stamp.images) {
@@ -163,7 +680,8 @@ export const deleteStamp = synchFunc(async (req, res) => {
   });
 });
 
-export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "stamps_images", customName = null) => {
+// ✅ Updated helper function with index parameter
+export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "stamps_images", customName = null, index = null) => {
   const sftp = new SFTPClient();
   try {
     await sftp.connect({
@@ -174,9 +692,20 @@ export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "sta
     });
 
     const ext = path.extname(originalFilename);
-    const safeName = customName
-      ? customName.replace(/\s+/g, "-").toLowerCase()
-      : path.basename(originalFilename, ext).toLowerCase();
+    let safeName;
+    
+    if (customName) {
+      safeName = customName.replace(/\s+/g, "-").toLowerCase();
+      // Add index or timestamp to make filename unique
+      if (index !== null) {
+        safeName = `${safeName}-${index}`;
+      } else {
+        safeName = `${safeName}-${Date.now()}`;
+      }
+    } else {
+      safeName = path.basename(originalFilename, ext).toLowerCase();
+    }
+    
     const finalFileName = `${safeName}${ext}`;
 
     const remoteDir = `/${folder}`;
@@ -196,96 +725,12 @@ export const uploadBufferToSFTP = async (buffer, originalFilename, folder = "sta
   }
 };
 
-
-
-// export const uploadPhoto = synchFunc(async (req, res) => {
-//     // 1. Get the stamp ID from the URL parameters for reliability
-//     const { id } = req.params;
-
-//     // 2. Find the existing stamp BEFORE processing the file
-//     // This is crucial to get its name if a new name isn't provided.
-//     const stampToUpdate = await StampModel.findById(id);
-//     if (!stampToUpdate) {
-//         throw new ErrorHandler(404, "Stamp not found");
-//     }
-
-//     const bb = busboy({ headers: req.headers });
-//     const formData = {};
-//     let fileUploadPromise = null; // We'll store the single file upload promise here
-
-//     bb.on("file", (fieldname, file, info) => {
-//         const { filename, mimeType } = info;
-//         if (!mimeType.startsWith("image/")) {
-//             return file.resume(); // Skip non-image files
-//         }
-
-//         const chunks = [];
-//         file.on("data", (chunk) => chunks.push(chunk));
-
-//         // Create a promise that resolves with the uploaded image details
-//         fileUploadPromise = new Promise((resolve, reject) => {
-//             file.on("end", async () => {
-//                 try {
-//                     const buffer = Buffer.concat(chunks);
-
-//                     // 3. Determine the correct filename
-//                     // Use the new name from the form if provided, otherwise use the existing stamp name.
-//                     // This ensures the filename stays in sync if the name is also being updated.
-//                     const nameForFile = formData.name || stampToUpdate.name;
-
-//                     // 4. Upload the new image, overwriting the old one.
-//                     // The 'customName' parameter ensures the filename is 'stamp-name.ext'.
-//                     // The sftp.put method automatically handles overwriting, so no delete is needed.
-//                     const newImage = await uploadBufferToSFTP(
-//                         buffer,
-//                         filename,      // Original filename is just for the extension
-//                         "images",
-//                         nameForFile    // This is the key change!
-//                     );
-                    
-//                     resolve(newImage);
-//                 } catch (err) {
-//                     reject(err);
-//                 }
-//             });
-//         });
-//     });
-
-//     bb.on("field", (fieldname, val) => {
-//         formData[fieldname] = val;
-//     });
-
-//     // Wait for busboy to finish parsing all fields and files
-//     await new Promise((resolve, reject) => {
-//         bb.on("finish", resolve);
-//         bb.on("error", (err) => reject(new ErrorHandler(500, err.message)));
-//         req.pipe(bb);
-//     });
-
-//     // If a new file was uploaded, wait for it to finish and add it to formData
-//     if (fileUploadPromise) {
-//         const uploadedImage = await fileUploadPromise;
-//         formData.images = [uploadedImage]; // Replace the old image array with the new one
-//     }
-
-//     // Update the stamp document in MongoDB
-//     const updatedStamp = await StampModel.findByIdAndUpdate(id, formData, {
-//         new: true,
-//         runValidators: true,
-//     });
-
-//     res.status(200).json({
-//         success: true,
-//         message: "Stamp updated successfully!",
-//         stamp: updatedStamp,
-//     });
-// });
-
 export const createCarousel = synchFunc(async (req, res) => {
   const bb = busboy({ headers: req.headers });
 
   let name = "";
   const uploadPromises = [];
+  let imageIndex = 0; // Track image count
 
   // 📝 Get carousel name
   bb.on("field", (fieldname, val) => {
@@ -308,6 +753,8 @@ export const createCarousel = synchFunc(async (req, res) => {
 
     const chunks = [];
     file.on("data", (chunk) => chunks.push(chunk));
+    
+    const currentIndex = imageIndex++; // Capture current index
 
     const uploadPromise = new Promise((resolve, reject) => {
       file.on("end", async () => {
@@ -318,12 +765,13 @@ export const createCarousel = synchFunc(async (req, res) => {
 
           const buffer = Buffer.concat(chunks);
 
-          // ✅ Use the helper so naming matches uploadPhoto
+          // ✅ Pass index to make filenames unique
           const result = await uploadBufferToSFTP(
             buffer,
             filename,
             "stamps_images",
-            name // optional: use carousel name as base for file naming
+            name,
+            currentIndex // Pass the index
           );
 
           resolve(result);
@@ -369,7 +817,6 @@ export const createCarousel = synchFunc(async (req, res) => {
   });
 });
 
-
 // Update Carousel
 export const updateCarousel = synchFunc(async (req, res) => {
   const bb = busboy({ headers: req.headers });
@@ -377,6 +824,7 @@ export const updateCarousel = synchFunc(async (req, res) => {
 
   const formData = {};
   const uploadPromises = [];
+  let imageIndex = 0; // Track new image count
 
   // Handle fields
   bb.on("field", (fieldname, val) => {
@@ -403,6 +851,8 @@ export const updateCarousel = synchFunc(async (req, res) => {
 
     const chunks = [];
     file.on("data", (chunk) => chunks.push(chunk));
+    
+    const currentIndex = imageIndex++; // Capture current index
 
     uploadPromises.push(
       new Promise((resolve, reject) => {
@@ -415,7 +865,8 @@ export const updateCarousel = synchFunc(async (req, res) => {
               buffer,
               filename,
               "stamps_images",
-              formData.name || null
+              formData.name || null,
+              currentIndex // Pass index for uniqueness
             );
 
             resolve({ publicId: uploaded.publicId, url: uploaded.url });
@@ -467,7 +918,6 @@ export const updateCarousel = synchFunc(async (req, res) => {
   });
 });
 
-
 export const deleteCarousel = synchFunc(async (req, res) => {
   const { id } = req.params;
 
@@ -479,10 +929,10 @@ export const deleteCarousel = synchFunc(async (req, res) => {
     try {
       const sftp = new SFTPClient();
       await sftp.connect({
-        host: process.env.SFTP_HOST, // IONOS SFTP host
+        host: process.env.SFTP_HOST,
         port: process.env.SFTP_PORT,
-        username: process.env.SFTP_USER,                // IONOS user
-        password: process.env.SFTP_PASS,             // IONOS password
+        username: process.env.SFTP_USER,
+        password: process.env.SFTP_PASS,
       });
 
       for (const img of carousel.images) {
@@ -513,3 +963,31 @@ export const deleteCarousel = synchFunc(async (req, res) => {
     message: "Carousel and associated images deleted successfully",
   });
 });
+
+// Helper function for deleting files from SFTP (if not already defined)
+const deleteFilesFromSFTP = async (publicIds, folder) => {
+  const sftp = new SFTPClient();
+  try {
+    await sftp.connect({
+      host: process.env.SFTP_HOST,
+      port: process.env.SFTP_PORT,
+      username: process.env.SFTP_USER,
+      password: process.env.SFTP_PASS,
+    });
+
+    for (const publicId of publicIds) {
+      const filePath = `/${folder}/${publicId}`;
+      try {
+        await sftp.delete(filePath);
+        console.log(`Deleted: ${filePath}`);
+      } catch (err) {
+        console.warn(`Failed to delete ${filePath}:`, err.message);
+      }
+    }
+
+    await sftp.end();
+  } catch (err) {
+    console.error("SFTP delete error:", err);
+    throw new ErrorHandler(500, "Failed to delete files from SFTP");
+  }
+};

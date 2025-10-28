@@ -51,19 +51,19 @@
 
 import nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
-  host: process.env.SFTP_HOST, 
-  port: process.env.SFTP_PORT,
-  secure: process.env.SFTP_PORT == 22, // true if using 465
+  host: process.env.SMTP_HOST, 
+  port: process.env.SMTP_PORT,
+  secure: process.env.SMTP_SECURE , // true if using 465
   auth: {
-    user: process.env.SFTP_USER,
-    pass: process.env.SFTP_PASS,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
 export async function mail(to = [], subject = "", message = "") {
   try {
     const info = await transporter.sendMail({
-      from: `"Agstamp" <${process.env.SFTP_USER}>`, 
+      from: `"Agstamp" <${process.env.SMTP_USER}>`, 
       to: to.join(","),
       subject,
       html: message,
