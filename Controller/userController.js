@@ -153,6 +153,110 @@ export const getAllUserOrder = synchFunc(async (req, res) => {
 //     res.status(201).json({ success: true, message: 'Message sent successfully' });
 // });
 
+// export const contactUSController = synchFunc(async (req, res) => {
+//     const { name, email, subject, message } = req.body;
+
+//     // Validate required fields
+//     if (!name || !email || !subject || !message) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: 'All fields are required' 
+//       });
+//     }
+
+//     // Email validation regex
+//     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//     if (!emailRegex.test(email)) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: 'Please provide a valid email address' 
+//       });
+//     }
+
+//     // Save to database first
+//     const newContact = new ContactUs({
+//       name,
+//       email,
+//       subject,
+//       message
+//     });
+
+//     await newContact.save();
+
+//     // Prepare email HTML
+//     const adminEmailHtml = `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+//             <h2 style="color: #333;">📬 New Contact Form Submission</h2>
+
+//             <p><strong>Name:</strong> ${name}</p>
+//             <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+//             <p><strong>Subject:</strong> ${subject}</p>
+//             <p><strong>Message:</strong></p>
+//             <div style="background: #fff; padding: 12px; border-left: 4px solid #007BFF; margin-top: 10px; color: #333;">
+//             ${message.replace(/\n/g, "<br />")}
+//             </div>
+
+//             <hr style="margin-top: 20px;" />
+//             <p style="font-size: 12px; color: #888;">Submitted on: ${new Date().toLocaleString()}</p>
+//             <p style="font-size: 12px; color: #888;">This email was generated automatically from your website contact form.</p>
+//         </div>
+//     `;
+
+//     // Prepare confirmation email for user
+//     const userConfirmationHtml = `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+//             <h2 style="color: #007BFF;">Thank You for Contacting Agstamp! 🎉</h2>
+            
+//             <p>Hi <strong>${name}</strong>,</p>
+            
+//             <p>We have received your message and our team will get back to you as soon as possible.</p>
+            
+//             <div style="background: #fff; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
+//                 <h3 style="margin-top: 0; color: #333;">Your Message Details:</h3>
+//                 <p><strong>Subject:</strong> ${subject}</p>
+//                 <p><strong>Message:</strong></p>
+//                 <p style="color: #555;">${message.replace(/\n/g, "<br />")}</p>
+//             </div>
+            
+//             <p>If you have any urgent concerns, please feel free to reply to this email.</p>
+            
+//             <hr style="margin: 20px 0;" />
+//             <p style="font-size: 12px; color: #888;">Best regards,<br/>The Agstamp Team</p>
+//         </div>
+//     `;
+
+//     try {
+//       // Send email to admin
+//       await mail(
+//         [process.env.ADMIN_EMAIL], 
+//         `Contact Form: ${subject}`, 
+//         adminEmailHtml
+//       );
+
+//       // Send confirmation email to user
+//       await mail(
+//         [email], 
+//         'We received your message - Agstamp', 
+//         userConfirmationHtml
+//       );
+
+//       res.status(201).json({ 
+//         success: true, 
+//         message: 'Message sent successfully! Check your email for confirmation.' 
+//       });
+
+//     } catch (emailError) {
+//       console.error('Email sending error:', emailError);
+      
+//       // Even if email fails, the message is saved in database
+//       res.status(201).json({ 
+//         success: true, 
+//         message: 'Message saved successfully! We will respond soon.',
+//         emailSent: false
+//       });
+//     }
+// });
+
 export const contactUSController = synchFunc(async (req, res) => {
     const { name, email, subject, message } = req.body;
 
@@ -173,6 +277,15 @@ export const contactUSController = synchFunc(async (req, res) => {
       });
     }
 
+    // Name validation - only letters and spaces
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    if (!nameRegex.test(name)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Name should contain only letters and spaces' 
+      });
+    }
+
     // Save to database first
     const newContact = new ContactUs({
       name,
@@ -183,20 +296,20 @@ export const contactUSController = synchFunc(async (req, res) => {
 
     await newContact.save();
 
-    // Prepare email HTML
+    // Prepare email HTML for admin
     const adminEmailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
             <h2 style="color: #333;">📬 New Contact Form Submission</h2>
 
             <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+            <p><strong>Email:</strong> <a href="mailto:${email}" style="color: #007BFF;">${email}</a></p>
             <p><strong>Subject:</strong> ${subject}</p>
             <p><strong>Message:</strong></p>
             <div style="background: #fff; padding: 12px; border-left: 4px solid #007BFF; margin-top: 10px; color: #333;">
-            ${message.replace(/\n/g, "<br />")}
+                ${message.replace(/\n/g, "<br />")}
             </div>
 
-            <hr style="margin-top: 20px;" />
+            <hr style="margin-top: 20px; border: none; border-top: 1px solid #e0e0e0;" />
             <p style="font-size: 12px; color: #888;">Submitted on: ${new Date().toLocaleString()}</p>
             <p style="font-size: 12px; color: #888;">This email was generated automatically from your website contact form.</p>
         </div>
@@ -220,17 +333,19 @@ export const contactUSController = synchFunc(async (req, res) => {
             
             <p>If you have any urgent concerns, please feel free to reply to this email.</p>
             
-            <hr style="margin: 20px 0;" />
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;" />
             <p style="font-size: 12px; color: #888;">Best regards,<br/>The Agstamp Team</p>
+            <p style="font-size: 12px; color: #888;">📧 Email: ${process.env.ADMIN_EMAIL || 'info@agstamp.com'}</p>
         </div>
     `;
 
     try {
-      // Send email to admin
+      // Send email to admin with replyTo set to user's email
       await mail(
         [process.env.ADMIN_EMAIL], 
         `Contact Form: ${subject}`, 
-        adminEmailHtml
+        adminEmailHtml,
+        email // Pass user's email for replyTo
       );
 
       // Send confirmation email to user
@@ -246,7 +361,7 @@ export const contactUSController = synchFunc(async (req, res) => {
       });
 
     } catch (emailError) {
-      console.error('Email sending error:', emailError);
+      console.error('❌ Email sending error:', emailError);
       
       // Even if email fails, the message is saved in database
       res.status(201).json({ 

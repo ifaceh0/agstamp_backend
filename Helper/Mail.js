@@ -103,40 +103,184 @@
 //   }
 // }
 
+// import nodemailer from "nodemailer";
+// import dotenv from 'dotenv';
+// dotenv.config({ path: 'Config/config.env' });
+
+// const transporter = nodemailer.createTransport({
+//   host: process.env.SMTP_HOST || 'smtp.ionos.com',
+//   port: parseInt(process.env.SMTP_PORT) || 587,
+//   secure: process.env.SMTP_SECURE === 'true',
+//   auth: {
+//     user: process.env.SMTP_USER,
+//     pass: process.env.SMTP_PASS,
+//   },
+//   debug: true, // Enable debug output
+//   logger: true // Log information to console
+// });
+
+// export async function mail(to = [], subject = "", message = "") {
+//   try {
+//     console.log('📧 Attempting to send email...');
+//     console.log('SMTP Host:', process.env.SMTP_HOST);
+//     console.log('SMTP Port:', process.env.SMTP_PORT);
+//     console.log('SMTP User:', process.env.SMTP_USER);
+    
+//     const info = await transporter.sendMail({
+//       from: `"Agstamp" <${process.env.SMTP_USER}>`, 
+//       to: to.join(","),
+//       subject,
+//       html: message,
+//     });
+    
+//     console.log("✅ Email sent successfully:", info.messageId);
+//     return info;
+//   } catch (error) {
+//     console.error("❌ Mail sending error:", error);
+//     throw error;
+//   }
+// }
+
+// import nodemailer from "nodemailer";
+// import dotenv from 'dotenv';
+// dotenv.config({ path: 'Config/config.env' });
+
+// const transporter = nodemailer.createTransport({
+//   host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+//   port: parseInt(process.env.SMTP_PORT) || 587,
+//   secure: process.env.SMTP_SECURE === 'true',
+//   auth: {
+//     user: process.env.SMTP_USER,
+//     pass: process.env.SMTP_PASS,
+//   },
+//   tls: {
+//     rejectUnauthorized: false
+//   },
+//   debug: true,
+//   logger: true
+// });
+
+// // Verify transporter on startup
+// transporter.verify(function (error, success) {
+//   if (error) {
+//     console.error("❌ SMTP Connection Error:", error);
+//   } else {
+//     console.log("✅ SMTP Server is ready to send emails");
+//   }
+// });
+
+// export async function mail(to = [], subject = "", message = "", replyTo = null) {
+//   try {
+//     console.log('📧 Attempting to send email...');
+//     console.log('SMTP Host:', process.env.SMTP_HOST);
+//     console.log('SMTP Port:', process.env.SMTP_PORT);
+//     console.log('SMTP User:', process.env.SMTP_USER);
+//     console.log('To:', to);
+//     console.log('Reply-To:', replyTo);
+    
+//     // Validate recipients
+//     if (!to || to.length === 0) {
+//       throw new Error('No recipients specified');
+//     }
+    
+//     // Validate message content
+//     if (!message || message.trim() === '') {
+//       throw new Error('Email message cannot be empty');
+//     }
+    
+//     const mailOptions = {
+//       from: `"Agstamp" <${process.env.SMTP_USER}>`, // Must be verified in Brevo
+//       to: to.join(","),
+//       subject,
+//       html: message,
+//       text: message.replace(/<[^>]*>/g, ''), // Plain text version
+//     };
+    
+//     // Add replyTo if provided (useful for contact forms)
+//     if (replyTo) {
+//       mailOptions.replyTo = replyTo;
+//     }
+    
+//     const info = await transporter.sendMail(mailOptions);
+    
+//     console.log("✅ Email sent successfully:", info.messageId);
+//     console.log("Response:", info.response);
+//     return info;
+//   } catch (error) {
+//     console.error("❌ Mail sending error:", error);
+//     console.error("Error details:", {
+//       message: error.message,
+//       code: error.code,
+//       command: error.command
+//     });
+//     throw error;
+//   }
+// }
+
 import nodemailer from "nodemailer";
 import dotenv from 'dotenv';
 dotenv.config({ path: 'Config/config.env' });
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.ionos.com',
+  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
   port: parseInt(process.env.SMTP_PORT) || 587,
   secure: process.env.SMTP_SECURE === 'true',
   auth: {
-    user: process.env.SMTP_USER,
+    user: process.env.SMTP_USER, // 8b7b9e001@smtp-brevo.com (for authentication)
     pass: process.env.SMTP_PASS,
   },
-  debug: true, // Enable debug output
-  logger: true // Log information to console
+  tls: {
+    rejectUnauthorized: false
+  },
 });
 
-export async function mail(to = [], subject = "", message = "") {
+transporter.verify(function (error, success) {
+  if (error) {
+    console.error("❌ SMTP Connection Error:", error);
+  } else {
+    console.log("✅ SMTP Server is ready to send emails");
+  }
+});
+
+export async function mail(to = [], subject = "", message = "", replyTo = null) {
   try {
-    console.log('📧 Attempting to send email...');
-    console.log('SMTP Host:', process.env.SMTP_HOST);
-    console.log('SMTP Port:', process.env.SMTP_PORT);
-    console.log('SMTP User:', process.env.SMTP_USER);
+    console.log('📧 Sending email...');
+    console.log('From:', process.env.SENDER_EMAIL);
+    console.log('To:', to);
+    console.log('ReplyTo:', replyTo || 'none');
     
-    const info = await transporter.sendMail({
-      from: `"Agstamp" <${process.env.SMTP_USER}>`, 
-      to: to.join(","),
+    if (!to || to.length === 0) {
+      throw new Error('No recipients specified');
+    }
+    
+    if (!message || message.trim() === '') {
+      throw new Error('Email message cannot be empty');
+    }
+    
+    if (!process.env.SENDER_EMAIL) {
+      throw new Error('SENDER_EMAIL not configured in .env file');
+    }
+    
+    const mailOptions = {
+      from: `"Agstamp" <${process.env.SENDER_EMAIL}>`, // pradyumna.dikhit@gmail.com
+      to: to.join(","), // info@agstamp.com
       subject,
       html: message,
-    });
+      text: message.replace(/<[^>]*>/g, ''),
+    };
     
-    console.log("✅ Email sent successfully:", info.messageId);
+    // Add replyTo for contact forms (user's email)
+    if (replyTo) {
+      mailOptions.replyTo = replyTo;
+    }
+    
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log("✅ Email sent successfully!");
+    console.log("Message ID:", info.messageId);
     return info;
   } catch (error) {
-    console.error("❌ Mail sending error:", error);
+    console.error("❌ Mail sending error:", error.message);
     throw error;
   }
 }
