@@ -217,38 +217,86 @@
 //   }
 // }
 
-import nodemailer from "nodemailer";
+// import nodemailer from "nodemailer";
+// import dotenv from 'dotenv';
+// dotenv.config({ path: 'Config/config.env' });
+
+// const transporter = nodemailer.createTransport({
+//   host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+//   port: parseInt(process.env.SMTP_PORT) || 587,
+//   secure: process.env.SMTP_SECURE === 'true',
+//   auth: {
+//     user: process.env.SMTP_USER, // 8b7b9e001@smtp-brevo.com (for authentication)
+//     pass: process.env.SMTP_PASS,
+//   },
+//   tls: {
+//     rejectUnauthorized: false
+//   },
+// });
+
+// transporter.verify(function (error, success) {
+//   if (error) {
+//     console.error("❌ SMTP Connection Error:", error);
+//   } else {
+//     console.log("✅ SMTP Server is ready to send emails");
+//   }
+// });
+
+// export async function mail(to = [], subject = "", message = "", replyTo = null) {
+//   try {
+//     console.log('📧 Sending email...');
+//     console.log('From:', process.env.SENDER_EMAIL);
+//     console.log('To:', to);
+//     console.log('ReplyTo:', replyTo || 'none');
+    
+//     if (!to || to.length === 0) {
+//       throw new Error('No recipients specified');
+//     }
+    
+//     if (!message || message.trim() === '') {
+//       throw new Error('Email message cannot be empty');
+//     }
+    
+//     if (!process.env.SENDER_EMAIL) {
+//       throw new Error('SENDER_EMAIL not configured in .env file');
+//     }
+    
+//     const mailOptions = {
+//       from: `"Agstamp" <${process.env.SENDER_EMAIL}>`, // pradyumna.dikhit@gmail.com
+//       to: to.join(","), // info@agstamp.com
+//       subject,
+//       html: message,
+//       text: message.replace(/<[^>]*>/g, ''),
+//     };
+    
+//     // Add replyTo for contact forms (user's email)
+//     if (replyTo) {
+//       mailOptions.replyTo = replyTo;
+//     }
+    
+//     const info = await transporter.sendMail(mailOptions);
+    
+//     console.log("✅ Email sent successfully!");
+//     console.log("Message ID:", info.messageId);
+//     return info;
+//   } catch (error) {
+//     console.error("❌ Mail sending error:", error.message);
+//     throw error;
+//   }
+// }
+
+import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config({ path: 'Config/config.env' });
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER, // 8b7b9e001@smtp-brevo.com (for authentication)
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false
-  },
-});
-
-transporter.verify(function (error, success) {
-  if (error) {
-    console.error("❌ SMTP Connection Error:", error);
-  } else {
-    console.log("✅ SMTP Server is ready to send emails");
-  }
-});
-
 export async function mail(to = [], subject = "", message = "", replyTo = null) {
   try {
-    console.log('📧 Sending email...');
+    console.log('📧 Sending email via Brevo API...');
     console.log('From:', process.env.SENDER_EMAIL);
     console.log('To:', to);
     console.log('ReplyTo:', replyTo || 'none');
     
+    // Validate inputs
     if (!to || to.length === 0) {
       throw new Error('No recipients specified');
     }
@@ -257,30 +305,61 @@ export async function mail(to = [], subject = "", message = "", replyTo = null) 
       throw new Error('Email message cannot be empty');
     }
     
-    if (!process.env.SENDER_EMAIL) {
-      throw new Error('SENDER_EMAIL not configured in .env file');
+    if (!process.env.BREVO_API_KEY) {
+      throw new Error('BREVO_API_KEY not configured in environment variables');
     }
     
-    const mailOptions = {
-      from: `"Agstamp" <${process.env.SENDER_EMAIL}>`, // pradyumna.dikhit@gmail.com
-      to: to.join(","), // info@agstamp.com
-      subject,
-      html: message,
-      text: message.replace(/<[^>]*>/g, ''),
+    if (!process.env.SENDER_EMAIL) {
+      throw new Error('SENDER_EMAIL not configured in environment variables');
+    }
+    
+    // Prepare email payload for Brevo API
+    const emailData = {
+      sender: { 
+        name: "Agstamp", 
+        email: process.env.SENDER_EMAIL 
+      },
+      to: to.map(email => ({ email })),
+      subject: subject,
+      htmlContent: message,
     };
     
-    // Add replyTo for contact forms (user's email)
+    // Add replyTo if provided
     if (replyTo) {
-      mailOptions.replyTo = replyTo;
+      emailData.replyTo = { email: replyTo };
     }
     
-    const info = await transporter.sendMail(mailOptions);
+    // Send email via Brevo API
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      emailData,
+      {
+        headers: {
+          'accept': 'application/json',
+          'api-key': process.env.BREVO_API_KEY,
+          'content-type': 'application/json',
+        },
+        timeout: 10000, // 10 second timeout
+      }
+    );
     
-    console.log("✅ Email sent successfully!");
-    console.log("Message ID:", info.messageId);
-    return info;
+    console.log("✅ Email sent successfully via Brevo API");
+    console.log("Message ID:", response.data.messageId);
+    
+    return {
+      messageId: response.data.messageId,
+      success: true
+    };
+    
   } catch (error) {
-    console.error("❌ Mail sending error:", error.message);
-    throw error;
+    console.error("❌ Mail sending error:", error.response?.data || error.message);
+    
+    // More detailed error logging
+    if (error.response) {
+      console.error("API Error Status:", error.response.status);
+      console.error("API Error Data:", error.response.data);
+    }
+    
+    throw new Error(error.response?.data?.message || error.message || 'Failed to send email');
   }
 }
