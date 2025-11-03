@@ -99,21 +99,153 @@ export const getWaveImg = synchFunc(async (_, res) => {
     res.status(201).json({ success:true, wave });
 })
 
-export const subscribeMailService = synchFunc(async (req, res) => {
-    const {email} = req.body;
-    const {user} = req;
-    const emailSendRes = await mail([email],"Welcome email","Hello");
-    if(emailSendRes.messageId){
-        const newSubscriber = new subscriberModel({
-            user:user._id,
-            subscribedEmail:email,
-        });
+// export const subscribeMailService = synchFunc(async (req, res) => {
+//     const {email} = req.body;
+//     const {user} = req;
+//     const emailSendRes = await mail([email],"Welcome email","Hello");
+//     if(emailSendRes.messageId){
+//         const newSubscriber = new subscriberModel({
+//             user:user._id,
+//             subscribedEmail:email,
+//         });
         
-        // Save user to database
-        await newSubscriber.save();
-        res.status(200).json({ success:true, message:"Thank you for subscribing" });
-    }else{
-        throw new ErrorHandler(400,'something Went Wrong While Sending The Mail!');
+//         // Save user to database
+//         await newSubscriber.save();
+//         res.status(200).json({ success:true, message:"Thank you for subscribing" });
+//     }else{
+//         throw new ErrorHandler(400,'something Went Wrong While Sending The Mail!');
+//     }
+// });
+
+export const subscribeMailService = synchFunc(async (req, res) => {
+    const { email } = req.body;
+    const { user } = req;
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Please provide a valid email address' 
+        });
+    }
+
+    // Check if already subscribed
+    const existingSubscriber = await subscriberModel.findOne({ subscribedEmail: email });
+    if (existingSubscriber) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'This email is already subscribed to our newsletter' 
+        });
+    }
+
+    try {
+        // Prepare welcome email for subscriber
+        const subscriberWelcomeEmail = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+                <h2 style="color: #007BFF;">Welcome to Agstamp Newsletter! 🎉</h2>
+                
+                <p>Hi there,</p>
+                
+                <p>Thank you for subscribing to our newsletter! We're excited to have you as part of our community.</p>
+                
+                <div style="background: #fff; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">What to Expect:</h3>
+                    <ul style="color: #555;">
+                        <li>Latest updates and news from Agstamp</li>
+                        <li>Exclusive offers and promotions</li>
+                        <li>Tips and insights about our products</li>
+                        <li>Special announcements and events</li>
+                    </ul>
+                </div>
+                
+                <p>You'll receive our newsletters directly to <strong>${email}</strong></p>
+                
+                <p style="font-size: 12px; color: #666; margin-top: 30px;">
+                    If you didn't subscribe or want to unsubscribe, please reply to this email or contact us at ${process.env.ADMIN_EMAIL || 'info@agstamp.com'}
+                </p>
+                
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;" />
+                <p style="font-size: 12px; color: #888;">Best regards,<br/>The Agstamp Team</p>
+                <p style="font-size: 12px; color: #888;">📧 Email: ${process.env.ADMIN_EMAIL || 'info@agstamp.com'}</p>
+            </div>
+        `;
+
+        // Prepare admin notification email
+        const adminNotificationEmail = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+                <h2 style="color: #333;">📬 New Newsletter Subscription</h2>
+                
+                <p><strong>A new user has subscribed to the Agstamp newsletter!</strong></p>
+                
+                <div style="background: #fff; padding: 15px; border-left: 4px solid #007BFF; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #333;">Subscriber Details:</h3>
+                    <p><strong>Email:</strong> <a href="mailto:${email}" style="color: #007BFF;">${email}</a></p>
+                    <p><strong>User ID:</strong> ${user._id}</p>
+                    <p><strong>Subscribed on:</strong> ${new Date().toLocaleString()}</p>
+                </div>
+                
+                <hr style="margin-top: 20px; border: none; border-top: 1px solid #e0e0e0;" />
+                <p style="font-size: 12px; color: #888;">This email was generated automatically from the Agstamp newsletter subscription system.</p>
+            </div>
+        `;
+
+        // Send emails in parallel
+        const emailPromises = [
+            // Send welcome email to subscriber
+            mail(
+                [email],
+                'Welcome to Agstamp Newsletter! 🎉',
+                subscriberWelcomeEmail
+            ),
+            // Send notification to admin
+            mail(
+                [process.env.ADMIN_EMAIL],
+                `New Newsletter Subscription: ${email}`,
+                adminNotificationEmail
+            )
+        ];
+
+        // Wait for both emails to send
+        const emailResults = await Promise.allSettled(emailPromises);
+        
+        // Check if subscriber email was sent successfully
+        const subscriberEmailSent = emailResults[0].status === 'fulfilled';
+        
+        if (subscriberEmailSent) {
+            // Save subscriber to database
+            const newSubscriber = new subscriberModel({
+                user: user._id,
+                subscribedEmail: email,
+            });
+            
+            await newSubscriber.save();
+
+            // Check if admin email was sent
+            const adminEmailSent = emailResults[1].status === 'fulfilled';
+            
+            if (!adminEmailSent) {
+                console.error('⚠️ Admin notification email failed:', emailResults[1].reason);
+            }
+
+            res.status(200).json({ 
+                success: true, 
+                message: 'Thank you for subscribing! Check your email for confirmation.' 
+            });
+        } else {
+            throw new ErrorHandler(400, 'Failed to send welcome email. Please try again.');
+        }
+
+    } catch (error) {
+        console.error('❌ Subscription error:', error);
+        
+        // If it's a database error
+        if (error.name === 'ValidationError' || error.name === 'MongoError') {
+            throw new ErrorHandler(500, 'Failed to save subscription. Please try again.');
+        }
+        
+        // If it's an email error or general error
+        throw new ErrorHandler(400, error.message || 'Something went wrong while processing your subscription.');
     }
 });
 
