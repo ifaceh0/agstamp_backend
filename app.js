@@ -65,9 +65,6 @@ import { errorHandlerMiddleware } from "./Middleware/errorMiddleWare.js";
 import { adminRoute } from "./Routes/adminRoute.js";
 import stripeRoutes from "./Routes/stripeRoutes.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 //   Load environment variables
 dotenv.config({ path: path.join(path.resolve(), "./Config/config.env") });
 
@@ -119,18 +116,6 @@ app.use("/api/v1", customersRoute);
 app.use("/api/v1", adminRoute);
 app.use("/api/v1/stripe", stripeRoutes);
 
-const frontendPath = path.join(__dirname, "dist"); // if you used "vite build" in same folder
-app.use(express.static(frontendPath));
-
-//  Handle React Router routes (fixes refresh errors + MIME issues)
-app.get("*", (req, res) => {
-  // For any non-API path, send React index.html
-  if (!req.originalUrl.startsWith("/api")) {
-    res.sendFile(path.join(frontendPath, "index.html"));
-  } else {
-    res.status(404).json({ message: "API route not found" });
-  }
-});
 
 // Error handling
 app.use(errorHandlerMiddleware);
