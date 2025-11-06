@@ -65,46 +65,19 @@ import { errorHandlerMiddleware } from "./Middleware/errorMiddleWare.js";
 import { adminRoute } from "./Routes/adminRoute.js";
 import stripeRoutes from "./Routes/stripeRoutes.js";
 
-// ✅ Load environment variables
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+//   Load environment variables
 dotenv.config({ path: path.join(path.resolve(), "./Config/config.env") });
 
-// ✅ Create Express app
+//   Create Express app
 export const app = express();
 
-// ✅ Parse cookies
+//   Parse cookies
 app.use(cookieParser());
 
 
-
-// ✅ Setup CORS middleware FIRST
-// const allowedOrigins = (process.env.FRONTEND_URL || "")
-//   .split(",")
-//   .map((origin) => origin.trim());
-
-
-// console.log("✅ Allowed Origins:", allowedOrigins);
-// if (allowedOrigins.length === 0) {
-//   console.warn("❗ No FRONTEND_URL values found. Check your .env file or Render environment variables.");
-// }
-
-
-// const corsOptions = {
-//   origin: function (origin, callback) {
-//     console.log(`🌐 Incoming CORS Origin: ${origin || "NO ORIGIN HEADER"}`);
-//     if (!origin || allowedOrigins.includes(origin)) {
-//       console.log("✅ CORS Allowed:", origin);
-//       callback(null, true);
-//     } else {
-//       console.warn("❌ CORS Blocked:", origin);
-//       callback(new Error("Not allowed by CORS"));
-//     }
-//   },
-//   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-//   credentials: true,
-//   allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
-// };
-
-// app.use(cors(corsOptions));
 
 app.use(cors({
   origin: ["https://agstamp-frontend.vercel.app","http://localhost:5173","https://agstamp.com"],
@@ -119,32 +92,45 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Stripe webhook raw body
+//  Stripe webhook raw body
 app.use("/api/v1/stripe/webhook", express.raw({ type: "application/json" }));
 
 
-// ✅ JSON parser for all other routes
+// JSON parser for all other routes
 app.use(express.json());
 
 console.log("CLOUDINARY_CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME);
-// ✅ Cloudinary configuration
+// Cloudinary configuration
 cloudinary.v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// ✅ Debug log to check if cookies arrive
+//  Debug log to check if cookies arrive
 app.use((req, res, next) => {
   console.log("Raw cookie header:", req.headers.cookie);
   console.log("Parsed cookies:", req.cookies);
   next();
 });
 
-// ✅ API routes
+// API routes
 app.use("/api/v1", customersRoute);
 app.use("/api/v1", adminRoute);
 app.use("/api/v1/stripe", stripeRoutes);
 
-// ✅ Error handling
+const frontendPath = path.join(__dirname, "dist"); // if you used "vite build" in same folder
+app.use(express.static(frontendPath));
+
+//  Handle React Router routes (fixes refresh errors + MIME issues)
+app.get("*", (req, res) => {
+  // For any non-API path, send React index.html
+  if (!req.originalUrl.startsWith("/api")) {
+    res.sendFile(path.join(frontendPath, "index.html"));
+  } else {
+    res.status(404).json({ message: "API route not found" });
+  }
+});
+
+// Error handling
 app.use(errorHandlerMiddleware);
