@@ -66,6 +66,7 @@ export const userLogin = synchFunc(async (req, res) => {
         httpOnly: true, 
         secure: true,
         sameSite: "none",
+        domain: ".onrender.com",
         path: "/",
     }).status(201).json({ success:true, message: 'Login successful', user: existingUser });
 })
