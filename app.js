@@ -159,7 +159,6 @@ import path from "path";
 import { customersRoute } from "./Routes/customersRoute.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-
 import { errorHandlerMiddleware } from "./Middleware/errorMiddleWare.js";
 import { adminRoute } from "./Routes/adminRoute.js";
 import stripeRoutes from "./Routes/stripeRoutes.js";

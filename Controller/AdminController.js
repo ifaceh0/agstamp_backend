@@ -704,14 +704,10 @@ export const addCategory = synchFunc(async (req, res) => {
   res.status(201).json(category);
 });
 
-export const getAllCategories = async (req, res) => {
-  try {
-    const categories = await categoryModel.find().sort({ createdAt: -1 });
-    res.status(200).json(categories);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch categories" });
-  }
-};
+export const getAllCategories = synchFunc(async (req, res) => {
+  const categories = await categoryModel.find().sort({ createdAt: -1 });
+  res.status(200).json(categories);
+});
 
 export const updateCategory = synchFunc(async (req, res) => {
   const { id } = req.params;
@@ -738,100 +734,95 @@ export const updateCategory = synchFunc(async (req, res) => {
   });
 });
 
-export const deleteCategory = async (req, res) => {
-  try {
-    const { id } = req.params;
+export const deleteCategory = synchFunc(async (req, res) => {
+  const { id } = req.params;
 
-    const stampCount = await StampModel.countDocuments({ categories: id });
+  const stampCount = await StampModel.countDocuments({ categories: id });
 
-    if (stampCount > 0) {
-      return res.status(400).json({
-        message: "Cannot delete category with existing stamps",
-      });
-    }
-
-    await categoryModel.findByIdAndDelete(id);
-
-    res.status(200).json({ message: "Category deleted successfully" });
-  } catch (error) {
-    console.error("Delete category error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+  if (stampCount > 0) {
+    throw new ErrorHandler(400, "Cannot delete category with existing stamps");
   }
-};
 
-export const getShippingRates = async (req, res) => {
-  try {
-    const rates = await ShippingRate.find();
-    res.status(200).json({ success: true, rates });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  await categoryModel.findByIdAndDelete(id);
+
+  res.status(200).json({ 
+    success: true,
+    message: "Category deleted successfully" 
+  });
+});
+
+export const getShippingRates = synchFunc(async (req, res) => {
+  const rates = await ShippingRate.find();
+  res.status(200).json({ success: true, rates });
+});
+
+export const updateShippingRate = synchFunc(async (req, res) => {
+  const { type, price } = req.body;
+  
+  if (!type || price == null) {
+    throw new ErrorHandler(400, "Type and price required");
   }
-};
 
-export const updateShippingRate = async (req, res) => {
-  try {
-    const { type, price } = req.body;
-    if (!type || price == null) {
-      return res.status(400).json({ success: false, message: "Type and price required" });
-    }
+  const updated = await ShippingRate.findOneAndUpdate(
+    { type },
+    { price },
+    { new: true, upsert: true }
+  );
 
-    const updated = await ShippingRate.findOneAndUpdate(
-      { type },
-      { price },
-      { new: true, upsert: true }
-    );
+  res.status(200).json({
+    success: true,
+    message: "Shipping rate updated successfully",
+    rate: updated,
+  });
+});
 
-    res.status(200).json({
-      success: true,
-      message: "Shipping rate updated successfully",
-      rate: updated,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+export const addCountry = synchFunc(async (req, res) => {
+  const { name, code, dialCode, active } = req.body;
+  
+  if (!name || !code) {
+    throw new ErrorHandler(400, "Name and code are required");
   }
-};
-
-export const addCountry = async (req, res, next) => {
-  try {
-    const { name, code, dialCode, active } = req.body;
-    if (!name || !code) throw new ErrorHandler(400, "Name and code are required");
-    const exists = await Country.findOne({ code: code.toUpperCase() });
-    if (exists) throw new ErrorHandler(400, "Country with this code already exists");
-    const country = await Country.create({ name, code: code.toUpperCase(), dialCode, active });
-    res.status(201).json({ success: true, country });
-  } catch (err) {
-    next(err);
+  
+  const exists = await Country.findOne({ code: code.toUpperCase() });
+  if (exists) {
+    throw new ErrorHandler(400, "Country with this code already exists");
   }
-};
+  
+  const country = await Country.create({ 
+    name, 
+    code: code.toUpperCase(), 
+    dialCode, 
+    active 
+  });
+  
+  res.status(201).json({ success: true, country });
+});
 
-export const getCountries = async (req, res, next) => {
-  try {
-    const countries = await Country.find().sort({ name: 1 });
-    res.status(200).json({ success: true, countries });
-  } catch (err) {
-    next(err);
-  }
-};
+export const getCountries = synchFunc(async (req, res) => {
+  const countries = await Country.find().sort({ name: 1 });
+  res.status(200).json({ success: true, countries });
+});
 
-export const updateCountry = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const payload = req.body;
-    if (payload.code) payload.code = payload.code.toUpperCase();
-    const updated = await Country.findByIdAndUpdate(id, payload, { new: true });
-    if (!updated) throw new ErrorHandler(404, "Country not found");
-    res.status(200).json({ success: true, country: updated });
-  } catch (err) {
-    next(err);
+export const updateCountry = synchFunc(async (req, res) => {
+  const { id } = req.params;
+  const payload = req.body;
+  
+  if (payload.code) {
+    payload.code = payload.code.toUpperCase();
   }
-};
+  
+  const updated = await Country.findByIdAndUpdate(id, payload, { new: true });
+  
+  if (!updated) {
+    throw new ErrorHandler(404, "Country not found");
+  }
+  
+  res.status(200).json({ success: true, country: updated });
+});
 
-export const deleteCountry = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    await Country.findByIdAndDelete(id);
-    res.status(200).json({ success: true, message: "Deleted" });
-  } catch (err) {
-    next(err);
-  }
-};
+
+export const deleteCountry = synchFunc(async (req, res) => {
+  const { id } = req.params;
+  await Country.findByIdAndDelete(id);
+  res.status(200).json({ success: true, message: "Deleted" });
+});

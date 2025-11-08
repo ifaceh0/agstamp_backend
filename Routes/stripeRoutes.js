@@ -59,7 +59,7 @@
 
 import express from "express";
 import * as stripeController from "../Controller/stripeController.js";
-import { authorization } from "../Utils/Athorization.js";
+import { authorization } from "../Utils/Authorization.js";
 
 const router = express.Router();
 
