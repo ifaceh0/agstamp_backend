@@ -1090,48 +1090,6 @@
 //     res.status(500).json({ success: false, message: "Server error while fetching shipping prices" });
 //   }
 // };
-import bcrypt from 'bcryptjs';
-import { UserModel } from '../Model/userModel.js';
-import jwt from "jsonwebtoken";
-import { synchFunc } from '../Utils/SynchFunc.js';
-import { ErrorHandler } from '../Utils/ErrorHandler.js';
-import stampModel from '../Model/stampModel.js';
-import PhotoModel from '../Model/WaveModel.js';
-import { mail } from '../Helper/Mail.js';
-import subscriberModel from '../Model/subcriberModel.js';
-import orderModel from '../Model/orderModel.js';
-import ContactUs from '../Model/ContactUs.js';
-import categoryModel from '../Model/CategoryModal.js';
-import ShippingRate from '../Model/ShippingRate.js';
-import CarouselModel from '../Model/CarouselModel.js';
-
-export const userRegister = synchFunc(async (req, res) => {
-    const { firstname, lastname, username, email, password } = req.body;
-
-    // Check if user already exists
-    const existingUser = await UserModel.findOne({ email });
-    if (existingUser) {
-        throw new ErrorHandler(400,'Email already in use')
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create new user
-    const newUser = new UserModel({
-        firstname,
-        lastname,
-        username,
-        email,
-        password: hashedPassword
-    });
-
-    // Save user to database
-    await newUser.save();
-
-    res.status(201).json({ success:true, message: 'register successful'});
-})
 
 // export const userLogin = synchFunc(async (req, res) => {
 //     const { email, password } = req.body;
@@ -1181,6 +1139,50 @@ export const userRegister = synchFunc(async (req, res) => {
 //        });
 // });
 
+import bcrypt from 'bcryptjs';
+import { UserModel } from '../Model/userModel.js';
+import jwt from "jsonwebtoken";
+import { synchFunc } from '../Utils/SynchFunc.js';
+import { ErrorHandler } from '../Utils/ErrorHandler.js';
+import stampModel from '../Model/stampModel.js';
+import PhotoModel from '../Model/WaveModel.js';
+import { mail } from '../Helper/Mail.js';
+import subscriberModel from '../Model/subcriberModel.js';
+import orderModel from '../Model/orderModel.js';
+import ContactUs from '../Model/ContactUs.js';
+import categoryModel from '../Model/CategoryModal.js';
+import ShippingRate from '../Model/ShippingRate.js';
+import CarouselModel from '../Model/CarouselModel.js';
+
+export const userRegister = synchFunc(async (req, res) => {
+    const { firstname, lastname, username, email, password } = req.body;
+
+    // Check if user already exists
+    const existingUser = await UserModel.findOne({ email });
+    if (existingUser) {
+        throw new ErrorHandler(400,'Email already in use')
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create new user
+    const newUser = new UserModel({
+        firstname,
+        lastname,
+        username,
+        email,
+        password: hashedPassword
+    });
+
+    // Save user to database
+    await newUser.save();
+
+    res.status(201).json({ success:true, message: 'register successful'});
+})
+
+
 export const userLogin = synchFunc(async (req, res) => {
     const { email, password } = req.body;
 
@@ -1207,6 +1209,11 @@ export const userLogin = synchFunc(async (req, res) => {
         sameSite: "none",
         path: "/",
     };
+
+     // ✅ Add domain only in production (Render deployment)
+    if (process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN) {
+        cookieOptions.domain = process.env.COOKIE_DOMAIN;
+    }
 
     res.cookie("agstampToken", token, cookieOptions)
        .status(200)
@@ -1247,19 +1254,47 @@ export const getUserInfo = synchFunc(async (req, res) => {
     });
 });
 
+// export const userLogout = synchFunc(async (_, res) => {
+//     // ✅ Add domain only in production (Render deployment)
+//     if (process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN) {
+//         cookieOptions.domain = process.env.COOKIE_DOMAIN;
+//     }
+//     res.cookie("agstampToken", "", {
+//         maxAge: 0,
+//         httpOnly: true,
+//         secure: true,
+//         sameSite: "none",
+//         path: "/",
+//     }).status(200).json({ 
+//         success: true, 
+//         message: 'Logout successful',
+//         user: null 
+//     });
+// })
+
 export const userLogout = synchFunc(async (_, res) => {
-    res.cookie("agstampToken", "", {
+    // ✅ Cookie configuration with conditional domain
+    const cookieOptions = {
         maxAge: 0,
         httpOnly: true,
         secure: true,
         sameSite: "none",
         path: "/",
-    }).status(200).json({ 
-        success: true, 
-        message: 'Logout successful',
-        user: null 
-    });
-})
+    };
+
+    // ✅ Add domain only in production (Render deployment)
+    if (process.env.NODE_ENV === 'production' && process.env.COOKIE_DOMAIN) {
+        cookieOptions.domain = process.env.COOKIE_DOMAIN;
+    }
+
+    res.cookie("agstampToken", "", cookieOptions)
+       .status(200)
+       .json({ 
+           success: true, 
+           message: 'Logout successful',
+           user: null 
+       });
+});
 
 export const userProduct = synchFunc(async (_, res) => {
     const today = new Date();
