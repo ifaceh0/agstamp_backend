@@ -84,3 +84,54 @@ export const authorization = synchFunc(async (req, res, next) => {
         throw error;
     }
 });
+
+// **
+//  * Optional Authorization Middleware
+//  * - If token exists and is valid: attaches user to req.user
+//  * - If no token or invalid token: continues without user (guest)
+//  * - Never throws errors, just sets req.isGuest = true/false
+//  */
+export const optionalAuth = async (req, res, next) => {
+  try {
+    let token = null;
+
+    // Try to get token from cookie
+    if (req.cookies && req.cookies.agstampToken) {
+      token = req.cookies.agstampToken;
+    }
+
+    // Fallback to Authorization header
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
+    }
+
+    // No token = guest user
+    if (!token) {
+      req.user = null;
+      req.isGuest = true;
+      return next();
+    }
+
+    // Try to verify token
+    const decoded = jwt.verify(token, process.env.JWTSECRET);
+    const user = await UserModel.findById(decoded.id).select("-password");
+
+    if (user) {
+      req.user = user;
+      req.isGuest = false;
+    } else {
+      req.user = null;
+      req.isGuest = true;
+    }
+
+    next();
+  } catch (error) {
+    // Token invalid/expired - treat as guest
+    req.user = null;
+    req.isGuest = true;
+    next();
+  }
+};
