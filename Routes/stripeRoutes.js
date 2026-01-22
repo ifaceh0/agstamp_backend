@@ -59,7 +59,7 @@
 
 import express from "express";
 import * as stripeController from "../Controller/stripeController.js";
-import { authorization } from "../Utils/Athorization.js";
+import { authorization } from "../Utils/Authorization.js";
 
 const router = express.Router();
 
@@ -69,7 +69,33 @@ router.post("/create-checkout-session",authorization,stripeController.createChec
 // Verify checkout session - public route
 router.get("/verify-session/:sessionId",authorization, stripeController.verifyCheckoutSession);
 
-// Webhook endpoint (raw body is now processed in app.js)
-router.post("/webhook",authorization, stripeController.handleWebhook);
+// ========== GUEST CHECKOUT ROUTES (NO AUTH) ==========
+// Create guest checkout session
+router.post(
+  "/guest/create-checkout-session",
+  stripeController.createGuestCheckoutSession
+);
+
+// Verify guest checkout session
+router.get(
+  "/guest/verify-session/:sessionId",
+  stripeController.verifyGuestCheckoutSession
+);
+
+// Track guest order by email and order ID
+router.post(
+  "/guest/track-order",
+  stripeController.trackGuestOrder
+);
+
+// ========== WEBHOOK (NO AUTH - Stripe sends this) ==========
+// Webhook endpoint (raw body is processed in app.js)
+router.post(
+  "/webhook",
+  stripeController.handleWebhook
+);
+
+// // Webhook endpoint (raw body is now processed in app.js)
+// router.post("/webhook",authorization, stripeController.handleWebhook);
 
 export default router;
