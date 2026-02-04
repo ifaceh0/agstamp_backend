@@ -255,7 +255,11 @@ import { adminRoute } from "./Routes/adminRoute.js";
 import stripeRoutes from "./Routes/stripeRoutes.js";
 
 // ✅ Load environment variables
-dotenv.config({ path: path.join(path.resolve(), "./Config/config.env") });
+//dotenv.config({ path: path.join(path.resolve(), "./Config/config.env") });
+// ✅ Load environment variables (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config({ path: path.join(path.resolve(), "./Config/config.env") });
+}
 
 // ✅ Create Express app
 export const app = express();
