@@ -271,6 +271,7 @@ app.use(cookieParser());
 app.use(cors({
   origin: function(origin, callback) {
     const allowedOrigins = [
+      "https://d2nkl6o7qlcjdh.cloudfront.net",
       "https://agstamp-frontend.vercel.app",
       "http://localhost:5173",
       "https://agstamp.com",
@@ -299,6 +300,7 @@ app.use(cors({
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
+    "https://d2nkl6o7qlcjdh.cloudfront.net",
     "https://agstamp-frontend.vercel.app",
     "http://localhost:5173",
     "https://agstamp.com",
