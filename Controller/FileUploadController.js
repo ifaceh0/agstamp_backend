@@ -1284,7 +1284,11 @@ export const updateCarousel = synchFunc(async (req, res) => {
               currentIndex
             );
 
-            resolve({ publicId: uploaded.publicId, url: uploaded.publicUrl });
+            // resolve({ publicId: uploaded.publicId, url: uploaded.publicUrl });
+            resolve({
+              publicId: uploaded.publicId,
+              publicUrl: uploaded.publicUrl
+            });
           } catch (err) {
             reject(new ErrorHandler(500, "Failed to upload image"));
           }
