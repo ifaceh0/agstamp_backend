@@ -5,7 +5,7 @@ import path from "path";
 import { ErrorHandler } from "./ErrorHandler.js";
 
 const s3 = new S3Client({
-  region: process.env.AWS_REGION,
+  region: "us-east-1",
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY_ID,
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
