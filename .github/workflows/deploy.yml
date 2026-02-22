@@ -1,0 +1,59 @@
+name: Deploy to AWS Lambda
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Install Serverless Framework
+        run: npm install -g serverless
+
+      - name: Deploy to AWS Lambda
+        run: serverless deploy
+        env:
+          # 🔐 Deployment IAM User (GitHub user)
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-south-1
+
+          # 🔵 Runtime Environment Variables
+          NODE_ENV: ${{ secrets.NODE_ENV }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          JWTEXPIRY: ${{ secrets.JWTEXPIRY }}
+          JWTSECRET: ${{ secrets.JWTSECRET }}
+          MONGOUSER: ${{ secrets.MONGOUSER }}
+          MONGOPASS: ${{ secrets.MONGOPASS }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_PASS: ${{ secrets.SFTP_PASS }}
+          SFTP_PORT: ${{ secrets.SFTP_PORT }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
