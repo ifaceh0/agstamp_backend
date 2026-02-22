@@ -1,7 +1,5 @@
 service: agstamp-backend
 
-frameworkVersion: '3'
-
 provider:
   name: aws
   runtime: nodejs22.x
