@@ -99,6 +99,7 @@ customersRoute.get('/user/waveimg', getWaveImg);
 customersRoute.get('/user/carousels', getPublicCarousels); 
 customersRoute.post('/user/contact/us', contactUSController);
 customersRoute.get('/user/shipping-prices', getCustomerShippingPrices);
+customersRoute.post('/user/subscribeMailService', subscribeMailService);
 
 // ✅ Protected Routes (Auth required)
 customersRoute.get('/user/info', authorization, getUserInfo);
@@ -109,4 +110,4 @@ customersRoute.post('/user/updatecart', authorization, updateCartItemQuantity);
 customersRoute.get('/user/orders', authorization, getAllUserOrder);
 customersRoute.delete('/user/removeitem/:stampId', authorization, removeCartItem);
 customersRoute.delete('/user/removeAllitem/:id', authorization, removeAllCartItem);
-customersRoute.post('/user/subscribeMailService', authorization, subscribeMailService);
+// customersRoute.post('/user/subscribeMailService', authorization, subscribeMailService);
