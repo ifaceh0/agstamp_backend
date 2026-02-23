@@ -1341,7 +1341,8 @@ export const getWaveImg = synchFunc(async (_, res) => {
 
 export const subscribeMailService = synchFunc(async (req, res) => {
     const { email } = req.body;
-    const { user } = req;
+    // const { user } = req;
+    const userId = req.user?._id || null;
 
     // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1392,7 +1393,7 @@ export const subscribeMailService = synchFunc(async (req, res) => {
                 <p style="font-size: 12px; color: #888;">📧 Email: ${process.env.ADMIN_EMAIL || 'info@agstamp.com'}</p>
             </div>
         `;
-
+{/* <p><strong>User ID:</strong> ${user._id}</p> */}
         // Prepare admin notification email
         const adminNotificationEmail = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
@@ -1403,7 +1404,8 @@ export const subscribeMailService = synchFunc(async (req, res) => {
                 <div style="background: #fff; padding: 15px; border-left: 4px solid #007BFF; margin: 20px 0;">
                     <h3 style="margin-top: 0; color: #333;">Subscriber Details:</h3>
                     <p><strong>Email:</strong> <a href="mailto:${email}" style="color: #007BFF;">${email}</a></p>
-                    <p><strong>User ID:</strong> ${user._id}</p>
+                    
+                    <p><strong>User ID:</strong> ${userId || 'Guest User'}</p>
                     <p><strong>Subscribed on:</strong> ${new Date().toLocaleString()}</p>
                 </div>
                 
@@ -1423,7 +1425,8 @@ export const subscribeMailService = synchFunc(async (req, res) => {
         
         if (subscriberEmailSent) {
             const newSubscriber = new subscriberModel({
-                user: user._id,
+                // user: user._id,
+                user: userId,
                 subscribedEmail: email,
             });
             
