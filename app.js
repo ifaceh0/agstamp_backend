@@ -276,7 +276,8 @@ app.use(cors({
       "http://localhost:5173",
       "https://agstamp.com",
       "https://www.agstamp.com",
-      "https://main.djn62pftbc0ej.amplifyapp.com"
+      "https://main.djn62pftbc0ej.amplifyapp.com",
+      "https://development.djn62pftbc0ej.amplifyapp.com"
     ];
     
     // Allow requests with no origin (mobile apps, Postman)
@@ -304,7 +305,9 @@ app.use((req, res, next) => {
     "https://agstamp-frontend.vercel.app",
     "http://localhost:5173",
     "https://agstamp.com",
-    "https://www.agstamp.com"
+    "https://www.agstamp.com",
+    "https://development.djn62pftbc0ej.amplifyapp.com",
+    "https://main.djn62pftbc0ej.amplifyapp.com"
   ];
   
   if (allowedOrigins.includes(origin)) {
