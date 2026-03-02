@@ -271,7 +271,8 @@ app.use(cors({
       "http://localhost:5173",
       "https://agstamp.com",
       "https://www.agstamp.com",
-      "https://main.djn62pftbc0ej.amplifyapp.com"
+      "https://main.djn62pftbc0ej.amplifyapp.com",
+      "https://development.djn62pftbc0ej.amplifyapp.com"
     ];
     
     // Allow requests with no origin (mobile apps, Postman)
@@ -280,7 +281,9 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // callback(new Error('Not allowed by CORS'));
+      callback(null, false);
+
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -298,7 +301,9 @@ app.use((req, res, next) => {
     "https://agstamp-frontend.vercel.app",
     "http://localhost:5173",
     "https://agstamp.com",
-    "https://www.agstamp.com"
+    "https://www.agstamp.com",
+    "https://development.djn62pftbc0ej.amplifyapp.com",
+    "https://main.djn62pftbc0ej.amplifyapp.com"
   ];
   
   if (allowedOrigins.includes(origin)) {
