@@ -1,3 +1,5 @@
 node_modules
 test-email-hardcoded.js
 test-email.js
+.env
+config.env

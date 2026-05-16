@@ -170,7 +170,8 @@ import {
     singleCarousel, singleStamp, updateStamp,
     getAllCategories, updateCategory, deleteCategory,
     getShippingRates, updateShippingRate,
-    addCountry, updateCountry, deleteCountry, getCountries
+    addCountry, updateCountry, deleteCountry, getCountries, 
+    reorderCategories
     } from '../Controller/AdminController.js';
 
 export const adminRoute = express.Router();
@@ -222,6 +223,7 @@ adminRoute.post('/addcategories', authorization, Protected, addCategory);
 adminRoute.get('/getcategories', authorization, Protected, getAllCategories);
 adminRoute.put('/updatecategory/:id', authorization, Protected, updateCategory);
 adminRoute.delete('/deletecategory/:id', authorization, Protected, deleteCategory);
+adminRoute.put('/reordercategories', authorization, Protected, reorderCategories);
 
 // ✅ Carousel Routes - REMOVED /admin prefix
 adminRoute.post('/addcarousel', authorization, Protected, createCarousel);
