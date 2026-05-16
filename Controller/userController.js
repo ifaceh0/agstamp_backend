@@ -1340,7 +1340,11 @@ export const getWaveImg = synchFunc(async (_, res) => {
 })
 
 export const subscribeMailService = synchFunc(async (req, res) => {
+    //console.log("BODY:", req.body);
     const { email } = req.body;
+    //console.log("EMAIL:", email);
+    //console.log("SMTP USER:", process.env.SMTP_USER);
+    //console.log("SMTP PASS EXISTS:", !!process.env.SMTP_PASS);
     // const { user } = req;
     const userId = req.user?._id || null;
 
@@ -1354,14 +1358,17 @@ export const subscribeMailService = synchFunc(async (req, res) => {
     }
 
     // Check if already subscribed
+    //console.log("Checking existing subscriber...");
     const existingSubscriber = await subscriberModel.findOne({ subscribedEmail: email });
+    //console.log("Existing subscriber:", existingSubscriber);
     if (existingSubscriber) {
-        return res.status(400).json({ 
-            success: false, 
-            message: 'This email is already subscribed to our newsletter' 
+        return res.status(200).json({ 
+            success: true, 
+            alreadySubscribed: true,
+            message: 'This email is already subscribed to our newsletter.'
         });
     }
-
+    //console.log("Entering try block...");
     try {
         // Prepare welcome email for subscriber
         const subscriberWelcomeEmail = `
@@ -1420,7 +1427,9 @@ export const subscribeMailService = synchFunc(async (req, res) => {
             mail([process.env.ADMIN_EMAIL], `New Newsletter Subscription: ${email}`, adminNotificationEmail)
         ];
 
+        //console.log("Sending emails...");
         const emailResults = await Promise.allSettled(emailPromises);
+        //console.log("EMAIL RESULTS:", emailResults);
         const subscriberEmailSent = emailResults[0].status === 'fulfilled';
         
         if (subscriberEmailSent) {
@@ -1446,7 +1455,9 @@ export const subscribeMailService = synchFunc(async (req, res) => {
         }
 
     } catch (error) {
+        //console.error('❌ Subscription error:', error);
         console.error('❌ Subscription error:', error);
+       // console.error("FULL ERROR:", error);
         
         if (error.name === 'ValidationError' || error.name === 'MongoError') {
             throw new ErrorHandler(500, 'Failed to save subscription. Please try again.');

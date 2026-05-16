@@ -287,8 +287,8 @@
 
 import axios from 'axios';
 import dotenv from 'dotenv';
-dotenv.config({ path: 'Config/config.env' });
-
+//dotenv.config({ path: 'Config/config.env' });
+dotenv.config();
 export async function mail(to = [], subject = "", message = "", replyTo = null) {
   try {
     console.log('📧 Sending email via Brevo API...');

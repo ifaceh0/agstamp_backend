@@ -1089,13 +1089,23 @@ export const getAllContactus = synchFunc(async (_, res) => {
   });
 });
 
+// export const addCategory = synchFunc(async (req, res) => {
+//   const category = await categoryModel.create({ name: req.body.name });
+//   res.status(201).json(category);
+// });
 export const addCategory = synchFunc(async (req, res) => {
-  const category = await categoryModel.create({ name: req.body.name });
+  const count = await categoryModel.countDocuments();
+
+  const category = await categoryModel.create({
+    name: req.body.name,
+    order: count, // 👈 IMPORTANT
+  });
+
   res.status(201).json(category);
 });
 
 export const getAllCategories = synchFunc(async (req, res) => {
-  const categories = await categoryModel.find().sort({ createdAt: -1 });
+  const categories = await categoryModel.find().sort({ order: 1 });
   res.status(200).json(categories);
 });
 
@@ -1215,4 +1225,26 @@ export const deleteCountry = synchFunc(async (req, res) => {
   const { id } = req.params;
   await Country.findByIdAndDelete(id);
   res.status(200).json({ success: true, message: "Deleted" });
+});
+
+export const reorderCategories = synchFunc(async (req, res) => {
+  const updates = req.body;
+
+  if (!Array.isArray(updates)) {
+    throw new ErrorHandler(400, "Invalid data format");
+  }
+
+  const bulkOps = updates.map((item) => ({
+    updateOne: {
+      filter: { _id: item.id },
+      update: { $set: { order: item.order } },
+    },
+  }));
+
+  await categoryModel.bulkWrite(bulkOps);
+
+  res.status(200).json({
+    success: true,
+    message: "Order updated",
+  });
 });
