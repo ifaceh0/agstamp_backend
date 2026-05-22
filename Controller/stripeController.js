@@ -2116,6 +2116,11 @@ import { ErrorHandler } from "../Utils/ErrorHandler.js";
 export const createCheckoutSession = async (req, res) => {
   try {
     const { items, customerEmail, customerName, shippingType, metadata = {}, selectedCountry, shippingRate } = req.body;
+    const allowedOrigins = (process.env.FRONTEND_URL || "").split(",").map(u => u.trim());
+    const requestOrigin = req.headers.origin;
+    const origin = allowedOrigins.includes(requestOrigin) 
+    ? requestOrigin 
+    : allowedOrigins[0]; // fallback to first UR
 
     // ✅ ADD: Validate req.user exists
     if (!req.user || !req.user._id) {
@@ -2323,6 +2328,12 @@ export const verifyCheckoutSession = async (req, res) => {
 export const createGuestCheckoutSession = async (req, res) => {
   try {
     const { items, customerEmail, customerName, metadata = {}, selectedCountry, shippingRate } = req.body;
+    const allowedOrigins = (process.env.FRONTEND_URL || "").split(",").map(u => u.trim());
+    const requestOrigin = req.headers.origin;
+    const origin = allowedOrigins.includes(requestOrigin) 
+    ? requestOrigin 
+    : allowedOrigins[0];
+    
 
     if (!customerEmail) {
       return res.status(400).json({ success: false, message: "Email is required for guest checkout" });
@@ -2366,8 +2377,10 @@ export const createGuestCheckoutSession = async (req, res) => {
       line_items: lineItems,
       customer_email: customerEmail,
       customer_creation: "always",
-      success_url: `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&guest=true`,
-      cancel_url: `${req.headers.origin}/checkout/cancel`,
+      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`, // ✅
+      cancel_url: `${origin}/checkout/cancel`, // ✅
+      // success_url: `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&guest=true`,
+      // cancel_url: `${req.headers.origin}/checkout/cancel`,
       shipping_address_collection: { allowed_countries: [countryCode] },
       shipping_options: [{
         shipping_rate_data: {
