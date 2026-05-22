@@ -2160,8 +2160,10 @@ export const createCheckoutSession = async (req, res) => {
       line_items: lineItems,
       customer_email: customerEmail,
       customer_creation: "always",
-      success_url: `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.origin}/checkout/cancel`,
+      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/checkout/cancel`,
+      // success_url: `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      // cancel_url: `${req.headers.origin}/checkout/cancel`,
       shipping_address_collection: { allowed_countries: [countryCode] },
       shipping_options: [{
         shipping_rate_data: {
@@ -2181,7 +2183,8 @@ export const createCheckoutSession = async (req, res) => {
         customerEmail: customerEmail, // ✅ ADD: Store email in metadata
         isGuestCheckout: "false",
         selectedCountry: countryCode,
-        products: JSON.stringify(items),
+        products: JSON.stringify(items.map(item => ({ mongoID: item.mongoID, quantity: item.quantity }))), // ✅
+        // products: JSON.stringify(items),
       },
     };
 
@@ -2399,7 +2402,8 @@ export const createGuestCheckoutSession = async (req, res) => {
         customerEmail,
         isGuestCheckout: "true",
         selectedCountry: countryCode,
-        products: JSON.stringify(items)
+        products: JSON.stringify(items.map(item => ({ mongoID: item.mongoID, quantity: item.quantity }))), // ✅
+        // products: JSON.stringify(items)
       },
     };
 
