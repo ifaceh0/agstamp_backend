@@ -2380,7 +2380,7 @@ export const createGuestCheckoutSession = async (req, res) => {
       line_items: lineItems,
       customer_email: customerEmail,
       customer_creation: "always",
-      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`, // ✅
+      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&guest=true`, // ✅
       cancel_url: `${origin}/checkout/cancel`, // ✅
       // success_url: `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&guest=true`,
       // cancel_url: `${req.headers.origin}/checkout/cancel`,
