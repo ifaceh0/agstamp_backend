@@ -324,6 +324,15 @@ app.use("/api/v1/stripe/webhook", express.raw({ type: "application/json" }));
 // ✅ JSON parser for all other routes
 app.use(express.json());
 
+// app.use('/api', (req, res, next) => {
+//   res.set({
+//     'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+//     'Pragma': 'no-cache',
+//     'Expires': '0',
+//   });
+//   next();
+// });
+
 // ✅ Debug middleware (OPTIONAL - remove in production)
 app.use((req, res, next) => {
   if (process.env.NODE_ENV !== 'production') {
@@ -353,3 +362,4 @@ app.use((req, res) => {
 
 // ✅ Error handling
 app.use(errorHandlerMiddleware);
+
