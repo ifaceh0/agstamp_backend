@@ -2204,11 +2204,6 @@ export const createCheckoutSession = async (req, res) => {
 // ✅ FIXED: Verify Authenticated User Session
 export const verifyCheckoutSession = async (req, res) => {
   try {
-    // ✅ Detect active frontend origin
-    const allowedOrigins = (process.env.FRONTEND_URL || "").split(",").map(u => u.trim());
-    const origin = allowedOrigins.includes(req.headers.origin)
-      ? req.headers.origin
-      : allowedOrigins[0];
     console.log('🔍 verifyCheckoutSession called');
     console.log('🔍 req.user:', req.user ? 'exists' : 'missing');
     console.log('🔍 sessionId:', req.params.sessionId);
@@ -2307,7 +2302,6 @@ export const verifyCheckoutSession = async (req, res) => {
           <p>Your order has been successfully placed on <strong>${today}</strong>.</p>
           <ul style="padding-left: 20px;">${listOfItem}</ul>
           <p><strong>Total:</strong> $${session.amount_total / 100}</p>
-          <p>You can track your order status here: <a href="${origin}/track-order" style="color: #2e7d32;">Track your order</a></p>
           <p>Thank you for choosing us!<br/>The Team</p>
         </div>
       `;
@@ -2426,14 +2420,8 @@ export const createGuestCheckoutSession = async (req, res) => {
 };
 
 // ✅ Verify Guest Session
-
 export const verifyGuestCheckoutSession = async (req, res) => {
   try {
-    // ✅ Detect active frontend origin
-    const allowedOrigins = (process.env.FRONTEND_URL || "").split(",").map(u => u.trim());
-    const origin = allowedOrigins.includes(req.headers.origin)
-      ? req.headers.origin
-      : allowedOrigins[0];
     console.log('🔍 verifyGuestCheckoutSession called');
     console.log('🔍 sessionId:', req.params.sessionId);
 
@@ -2501,32 +2489,17 @@ export const verifyGuestCheckoutSession = async (req, res) => {
     await updateStampStock(orderInstance);
 
     // Send guest confirmation email
-    // ✅ CHANGE 1: Added today's date + itemized product list (same as authenticated user)
     const guestEmail = session.metadata.customerEmail;
     const guestName = session.metadata.customerName || "Valued Customer";
     
     if (guestEmail) {
-      // ✅ NEW: Added date
-      const today = new Date().toISOString().split("T")[0];
-      // ✅ NEW: Added product list loop
-      const listOfItem = response.map(item => `
-        <li style="margin-bottom: 10px;">
-          <div><strong>Name:</strong> ${item.name}</div>
-          <div><strong>Price:</strong> $${item.unitPrice}</div>
-          <div><strong>Quantity:</strong> ${item.quantity}</div>
-        </li>
-      `).join("");
-
       const htmlBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
           <h2 style="color: #2e7d32;">Thank you for your order!</h2>
           <p>Hi <strong>${guestName}</strong>,</p>
-          <!-- ✅ NEW: Added date to the message -->
-          <p>Your order <strong>#${orderInstance._id}</strong> has been placed successfully on <strong>${today}</strong>.</p>
-          <!-- ✅ NEW: Added itemized list -->
-          <ul style="padding-left: 20px;">${listOfItem}</ul>
+          <p>Your order <strong>#${orderInstance._id}</strong> has been placed successfully.</p>
           <p><strong>Total:</strong> $${session.amount_total / 100}</p>
-          <p>Save your Order ID to track your order status. <a href="${origin}/track-order" style="color: #2e7d32;">Track your order here</a></p>
+          <p>Save your Order ID to track your order status.</p>
           <p>Thank you!<br/>The Team</p>
         </div>
       `;
@@ -2535,6 +2508,7 @@ export const verifyGuestCheckoutSession = async (req, res) => {
         await mail([guestEmail], "Your Order Has Been Placed! 🛒", htmlBody);
       } catch (emailError) {
         console.error("Error sending guest email:", emailError);
+        // Don't fail the entire request if email fails
       }
     }
 
@@ -2595,12 +2569,7 @@ export const handleWebhook = async (req, res) => {
 
   try {
     if (event.type === "checkout.session.completed") {
-      // ✅ Detect active frontend origin
-      const allowedOrigins = (process.env.FRONTEND_URL || "").split(",").map(u => u.trim());
-      const origin = allowedOrigins.includes(req.headers.origin)
-        ? req.headers.origin
-        : allowedOrigins[0];
-      await handleCheckoutSessionCompleted(event.data.object, origin);
+      await handleCheckoutSessionCompleted(event.data.object);
     } else if (event.type === "payment_intent.succeeded") {
       await handlePaymentIntentSucceeded(event.data.object);
     }
@@ -2612,8 +2581,7 @@ export const handleWebhook = async (req, res) => {
   }
 };
 
-
-async function handleCheckoutSessionCompleted(session, origin) {
+async function handleCheckoutSessionCompleted(session) {
   try {
     const expanded = await stripe.checkout.sessions.retrieve(session.id, {
       expand: ["line_items"]
@@ -2655,38 +2623,6 @@ async function handleCheckoutSessionCompleted(session, origin) {
         $push: { orders: order._id }
       });
     }
-    // ✅ CHANGE 2: NEW — Send confirmation email from webhook for both guest and authenticated users
-    const recipientEmail = isGuest ? metadata?.customerEmail : customer_email;
-    const recipientName = metadata?.customerName || "Customer";
-
-    if (recipientEmail) {
-      const today = new Date().toISOString().split("T")[0];
-      const listOfItem = line_items.data.map(item => `
-        <li style="margin-bottom: 10px;">
-          <div><strong>Name:</strong> ${item.description}</div>
-          <div><strong>Price:</strong> $${item.amount_total / 100}</div>
-          <div><strong>Quantity:</strong> ${item.quantity}</div>
-        </li>
-      `).join("");
-
-      const htmlBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-          <h2 style="color: #2e7d32;">Thank you for your order!</h2>
-          <p>Hi <strong>${recipientName}</strong>,</p>
-          <p>Your order <strong>#${order._id}</strong> has been placed successfully on <strong>${today}</strong>.</p>
-          <ul style="padding-left: 20px;">${listOfItem}</ul>
-          <p><strong>Total:</strong> $${amount_total / 100}</p>
-          <p>Thank you for choosing us!<br/>The Team</p>
-        </div>
-      `;
-
-      try {
-        await mail([recipientEmail], "Your Order Has Been Placed! 🛒", htmlBody);
-      } catch (emailError) {
-        console.error("Error sending webhook email:", emailError);
-      }
-    }
-    // ✅ END CHANGE 2
   } catch (err) {
     console.error("Error handling checkout completed:", err);
   }
