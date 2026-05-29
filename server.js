@@ -27,26 +27,6 @@
 
 
 // updated code for lambda deployment
-// import { app } from "./app.js";
-// import { dbCon } from "./Config/dbcon.js";
-// import serverless from "serverless-http";
-
-// let isConnected = false;
-
-// const connectDB = async () => {
-//   if (!isConnected) {
-//     await dbCon();
-//     isConnected = true;
-//   }
-// };
-
-// const handler = serverless(app);
-
-// export const main = async (event, context) => {
-//   await connectDB();
-//   return handler(event, context);
-// };
-
 import { app } from "./app.js";
 import { dbCon } from "./Config/dbcon.js";
 import serverless from "serverless-http";
@@ -66,14 +46,3 @@ export const main = async (event, context) => {
   await connectDB();
   return handler(event, context);
 };
-
-//✅ Better condition for local dev
-if (true) {
-  const PORT = 5000;
-
-  connectDB().then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
-  });
-}
