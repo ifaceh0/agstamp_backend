@@ -1045,7 +1045,8 @@ export const sendMailToSubscribers = synchFunc(async (req, res) => {
 });
 
 export const getAllOrders = synchFunc(async (req, res) => {
-  const orders = await orderModel.find();
+  // const orders = await orderModel.find();
+  const orders = await orderModel.find().populate('userId', 'name email').sort({ createdAt: -1 });
   if (orders.length > 0) {
     res.status(200).json({ success: true, orders });
   } else {
@@ -1059,7 +1060,7 @@ export const editOrder = synchFunc(async (req, res) => {
   if (!order) throw new ErrorHandler(404, "Order not found");
   order.status = status;
   await order.save();
-  const orders = await orderModel.find();
+  const orders = await orderModel.find().populate('userId', 'name email').sort({ createdAt: -1 });
   res.status(200).json({
     success: true,
     orders,
@@ -1246,5 +1247,22 @@ export const reorderCategories = synchFunc(async (req, res) => {
   res.status(200).json({
     success: true,
     message: "Order updated",
+  });
+});
+
+export const bulkDeleteStamps = synchFunc(async (req, res) => {
+  const { ids } = req.body;
+  
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    throw new ErrorHandler(400, "No stamp IDs provided");
+  }
+
+  await StampModel.deleteMany({ _id: { $in: ids } });
+  const stamps = await StampModel.find();
+  
+  res.status(200).json({ 
+    success: true, 
+    message: `${ids.length} stamp(s) deleted successfully`,
+    stamps 
   });
 });

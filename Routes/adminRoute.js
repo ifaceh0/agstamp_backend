@@ -171,7 +171,7 @@ import {
     getAllCategories, updateCategory, deleteCategory,
     getShippingRates, updateShippingRate,
     addCountry, updateCountry, deleteCountry, getCountries, 
-    reorderCategories
+    reorderCategories, bulkDeleteStamps
     } from '../Controller/AdminController.js';
 
 export const adminRoute = express.Router();
@@ -217,6 +217,7 @@ adminRoute.get('/getallstamp', authorization, Protected, allStamps);
 adminRoute.get('/getstamp/:id', authorization, Protected, singleStamp);
 adminRoute.put('/updateStamp/:id', authorization, Protected, updateStamp);
 adminRoute.delete('/deleteStamp/:id', authorization, Protected, deleteStamp);
+adminRoute.delete('/stamps/bulk-delete', authorization, Protected, bulkDeleteStamps);
 
 // ✅ Category Routes - REMOVED /admin prefix
 adminRoute.post('/addcategories', authorization, Protected, addCategory);
