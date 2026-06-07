@@ -1266,3 +1266,28 @@ export const bulkDeleteStamps = synchFunc(async (req, res) => {
     stamps 
   });
 });
+
+export const bulkToggleStamps = synchFunc(async (req, res) => {
+  const { ids, active } = req.body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    throw new ErrorHandler(400, "No stamp IDs provided");
+  }
+
+  if (typeof active !== "boolean") {
+    throw new ErrorHandler(400, "Active status must be a boolean");
+  }
+
+  await StampModel.updateMany(
+    { _id: { $in: ids } },
+    { $set: { active } }
+  );
+
+  const stamps = await StampModel.find().populate("categories", "name");
+
+  res.status(200).json({
+    success: true,
+    message: `${ids.length} stamp(s) ${active ? "activated" : "deactivated"} successfully`,
+    stamps,
+  });
+});

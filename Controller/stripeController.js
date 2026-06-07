@@ -2312,24 +2312,50 @@ export const verifyCheckoutSession = async (req, res) => {
         </div>
       `;
 
-      try {
-        await mail([userEmail], "Your Order Has Been Placed Successfully! 🛒", htmlBody);
-      } catch (emailError) {
-        console.error("Error sending email:", emailError);
-        // Don't fail the entire request if email fails
-      }
-    }
+      // try {
+      //   await mail([userEmail], "Your Order Has Been Placed Successfully! 🛒", htmlBody);
+      // } catch (emailError) {
+      //   console.error("Error sending email:", emailError);
+      //   // Don't fail the entire request if email fails
+      // }
+      const adminHtmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <h2 style="color: #333;">🛒 New Order Received</h2>
+        <div style="background: #fff; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Buyer Details:</h3>
+          <p><strong>Name:</strong> ${userName}</p>
+          <p><strong>Email:</strong> <a href="mailto:${userEmail}">${userEmail}</a></p>
+          <p><strong>Order ID:</strong> ${orderInstance._id}</p>
+          <p><strong>Order Date:</strong> ${today}</p>
+          <p><strong>Total:</strong> $${session.amount_total / 100}</p>
+        </div>
+        <h3>Items Ordered:</h3>
+        <ul style="padding-left: 20px;">${listOfItem}</ul>
+        <hr style="margin-top: 20px; border: none; border-top: 1px solid #e0e0e0;" />
+        <p style="font-size: 12px; color: #888;">This email was generated automatically from agstamp.com</p>
+      </div>
+    `;
 
-    res.status(200).json({ success: true, session, order: orderInstance, updatedStamp: isUpdated });
-  } catch (error) {
-    console.error("❌ Error verifying checkout session:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to verify checkout session", 
-      error: error.message 
-    });
-  }
-};
+    try {
+      await Promise.allSettled([
+        mail([userEmail], "Your Order Has Been Placed Successfully! 🛒", htmlBody),
+        mail([process.env.ADMIN_EMAIL || 'info@agstamp.com'], `New Order #${orderInstance._id} - agstamp.com`, adminHtmlBody)
+      ]);
+    } catch (emailError) {
+      console.error("Error sending emails:", emailError);
+    }
+      }
+
+      res.status(200).json({ success: true, session, order: orderInstance, updatedStamp: isUpdated });
+    } catch (error) {
+      console.error("❌ Error verifying checkout session:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to verify checkout session", 
+        error: error.message 
+      });
+    }
+  };
 
 // ==========================================
 // 🧾 GUEST CHECKOUT (NO AUTH REQUIRED)
@@ -2531,12 +2557,40 @@ export const verifyGuestCheckoutSession = async (req, res) => {
         </div>
       `;
 
-      try {
-        await mail([guestEmail], "Your Order Has Been Placed! 🛒", htmlBody);
-      } catch (emailError) {
-        console.error("Error sending guest email:", emailError);
+    //   try {
+    //     await mail([guestEmail], "Your Order Has Been Placed! 🛒", htmlBody);
+    //   } catch (emailError) {
+    //     console.error("Error sending guest email:", emailError);
+    //   }
+    // }
+
+    const adminHtmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+      <h2 style="color: #333;">🛒 New Guest Order Received</h2>
+      <div style="background: #fff; padding: 15px; border-left: 4px solid #007BFF; margin: 20px 0;">
+        <h3 style="margin-top: 0;">Buyer Details:</h3>
+        <p><strong>Name:</strong> ${guestName}</p>
+        <p><strong>Email:</strong> <a href="mailto:${guestEmail}">${guestEmail}</a></p>
+        <p><strong>Order ID:</strong> ${orderInstance._id}</p>
+        <p><strong>Order Date:</strong> ${today}</p>
+        <p><strong>Total:</strong> $${session.amount_total / 100}</p>
+      </div>
+      <h3>Items Ordered:</h3>
+      <ul style="padding-left: 20px;">${listOfItem}</ul>
+      <hr style="margin-top: 20px; border: none; border-top: 1px solid #e0e0e0;" />
+      <p style="font-size: 12px; color: #888;">This email was generated automatically from agstamp.com</p>
+    </div>
+  `;
+
+  try {
+    await Promise.allSettled([
+      mail([guestEmail], "Your Order Has Been Placed! 🛒", htmlBody),
+      mail([process.env.ADMIN_EMAIL || 'info@agstamp.com'], `New Guest Order #${orderInstance._id} - agstamp.com`, adminHtmlBody)
+    ]);
+  } catch (emailError) {
+    console.error("Error sending guest emails:", emailError); 
+  }
       }
-    }
 
     res.status(200).json({ success: true, session, order: orderInstance });
   } catch (error) {
