@@ -1177,10 +1177,54 @@ export const userRegister = synchFunc(async (req, res) => {
     });
 
     // Save user to database
+    // Save user to database
     await newUser.save();
 
+    // Send welcome emails
+    const welcomeEmailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+            <h2 style="color: #007BFF;">Welcome to agstamp.com! 🎉</h2>
+        
+            <p>Hi <strong>${firstname}</strong>,</p>
+        
+            <p>Welcome to agstamp.com! Thank you for creating an account with us.</p>
+            <p>We are excited to help you find the stamps you need for your mailing and shipping needs.</p>
+            <p>If you have any questions or need assistance, our team is here to help.</p>
+            <p>Thank you for choosing agstamp.com. We look forward to serving you!</p>
+        
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;" />
+            <p style="font-size: 12px; color: #888;">Best Regards,<br/>agstamp.com Customer Support</p>
+            <p style="font-size: 12px; color: #888;">📧 Email: ${process.env.ADMIN_EMAIL || 'info@agstamp.com'}</p>
+            <p style="font-size: 12px; color: #888;">🌐 Website: <a href="https://www.agstamp.com">www.agstamp.com</a></p>
+        </div>
+    `;
+
+    const adminNotificationHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #f9f9f9;">
+            <h2 style="color: #333;">👤 New User Registration</h2>
+        
+            <p><strong>A new user has registered on agstamp.com!</strong></p>
+        
+            <div style="background: #fff; padding: 15px; border-left: 4px solid #007BFF; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #333;">User Details:</h3>
+                <p><strong>Name:</strong> ${firstname} ${lastname}</p>
+                <p><strong>Username:</strong> ${username}</p>
+                <p><strong>Email:</strong> <a href="mailto:${email}" style="color: #007BFF;">${email}</a></p>
+                <p><strong>Registered on:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+        
+            <hr style="margin-top: 20px; border: none; border-top: 1px solid #e0e0e0;" />
+            <p style="font-size: 12px; color: #888;">This email was generated automatically from the agstamp.com registration system.</p>
+        </div>
+    `;
+
+    await Promise.allSettled([
+        mail([email], 'Welcome to www.agstamp.com', welcomeEmailHtml),
+        mail([process.env.ADMIN_EMAIL || 'info@agstamp.com'], 'New User Registration - agstamp.com', adminNotificationHtml)
+    ]);
+
     res.status(201).json({ success:true, message: 'register successful'});
-})
+});
 
 
 export const userLogin = synchFunc(async (req, res) => {
